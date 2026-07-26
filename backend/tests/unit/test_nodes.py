@@ -182,6 +182,10 @@ async def test_quality_gate_local_path_passes_when_no_hallucination():
 
     assert result["hallucination_flag"] is False
     assert result["answer_quality_pass"] is True
+    # 新增：验证 judge_log 包含两条记录（halluc_judge + quality_judge）
+    assert len(result["judge_log"]) == 2
+    assert result["judge_log"][0]["judge_type"] == "is_hallucination"
+    assert result["judge_log"][1]["judge_type"] == "is_quality_pass"
 
 @pytest.mark.asyncio
 async def test_quality_gate_fallback_on_error():

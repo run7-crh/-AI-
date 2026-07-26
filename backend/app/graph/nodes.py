@@ -168,7 +168,7 @@ async def quality_gate_node(state: AgentState) -> dict:
             source=source, answer=answer, query=state["rewritten_query"],
         )
         state["answer_quality_pass"] = quality_judge["passed"]
-        state["judge_log"] = [quality_judge]
+        state["judge_log"] = [halluc_judge, quality_judge]
 
         # 综合：质量通过 = 无幻觉 AND 答案质量通过
         state["answer_quality_pass"] = (
