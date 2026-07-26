@@ -124,3 +124,38 @@ async def test_web_search_node_writes_web_search_result():
         mock_ts.return_value = "[1] 新闻内容"
         result = await web_search_node(state)
     assert result["web_search_result"] == "[1] 新闻内容"
+
+from app.graph.nodes import generate_answer_node
+
+@pytest.mark.asyncio
+async def test_generate_answer_local_path_uses_local_prompt():
+    state = AgentState(
+        query="x", conversation_id="c1", history=[],
+        rewritten_query="什么是 Agent",
+        retrieval_result=[{"content": "Agent 是...", "source": "Agent.md", "title": "Agent", "score": 0.9}],
+        judge_log=[],
+    )
+    with patch("app.graph.nodes.call_llm", new_callable=AsyncMock) as mock_llm:
+        mock_llm.return_value = {"text": "Agent 是一种...", "structured": None}
+        result = await generate_answer_node(state)
+
+    assert result["local_answer"] == "Agent 是一种..."
+    assert result["route_path"] == "local"
+    # 验证用 LOCAL_GEN_PROMPT（通过检查 system_prompt 含检索内容）
+    call_kwargs = mock_llm.call_args.kwargs
+    assert "Agent 是..." in call_kwargs["system_prompt"] or "Agent 是..." in call_kwargs["user_input"]
+
+@pytest.mark.asyncio
+async def test_generate_answer_online_path_uses_online_prompt():
+    state = AgentState(
+        query="x", conversation_id="c1", history=[],
+        rewritten_query="最新新闻",
+        web_search_result="[1] 新闻内容",
+        judge_log=[],
+    )
+    with patch("app.graph.nodes.call_llm", new_callable=AsyncMock) as mock_llm:
+        mock_llm.return_value = {"text": "根据最新搜索...", "structured": None}
+        result = await generate_answer_node(state)
+
+    assert result["online_answer"] == "根据最新搜索..."
+    assert result["route_path"] == "online"

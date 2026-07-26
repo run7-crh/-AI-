@@ -94,3 +94,46 @@ async def rag_retrieve_node(state: AgentState, rag_retriever) -> dict:
 async def web_search_node(state: AgentState) -> dict:
     result = await tavily_search(state["rewritten_query"])
     return {"web_search_result": result}
+
+
+async def generate_answer_node(state: AgentState) -> dict:
+    """统一生成节点：根据是否走 web 路径选提示词。"""
+    if state.get("web_search_result"):
+        # 联网路径
+        prompt = ONLINE_GEN_PROMPT.format(
+            query=state["rewritten_query"],
+            search_result=state["web_search_result"],
+        )
+        result = await call_llm(
+            system_prompt=prompt,
+            user_input=state["query"],
+            temperature=0.7,
+            history=state.get("history", []),
+            model=settings.MODEL_PRO_CHAT,
+        )
+        return {
+            "online_answer": result["text"],
+            "final_answer": result["text"],
+            "route_path": "online",
+        }
+    else:
+        # 知识库路径
+        context = "\n\n".join([
+            f"[{i+1}] {r['content']}" for i, r in enumerate(state["retrieval_result"])
+        ])
+        prompt = LOCAL_GEN_PROMPT.format(
+            query=state["rewritten_query"],
+            context=context,
+        )
+        result = await call_llm(
+            system_prompt=prompt,
+            user_input=state["query"],
+            temperature=0.7,
+            history=state.get("history", []),
+            model=settings.MODEL_PRO_CHAT,
+        )
+        return {
+            "local_answer": result["text"],
+            "final_answer": result["text"],
+            "route_path": "local",
+        }
