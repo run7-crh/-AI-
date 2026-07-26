@@ -1,4 +1,5 @@
 from llama_index.core.postprocessor.types import BaseNodePostprocessor
+from llama_index.core.retrievers import VectorIndexRetriever
 from llama_index.core.schema import NodeWithScore, QueryBundle
 
 
@@ -38,3 +39,29 @@ class HuaweiReranker(BaseNodePostprocessor):
         # 占位实现：返回按顺序递减的分数
         # 实际应调用华为云 MaaS rerank API（httpx）
         return {"scores": [1.0 - i * 0.1 for i in range(len(documents))]}
+
+
+class RAGRetriever:
+    """统一检索器：向量检索 + Reranking。"""
+
+    def __init__(self, index, top_k: int = 3):
+        self.retriever = VectorIndexRetriever(
+            index=index,
+            similarity_top_k=top_k * 3,
+        )
+        self.reranker = HuaweiReranker()
+        self.final_top_k = top_k
+
+    def retrieve(self, query: str) -> list:
+        nodes = self.retriever.retrieve(query)
+        reranked = self.reranker.postprocess_nodes(nodes, query_str=query)
+        final = reranked[:self.final_top_k]
+        return [
+            {
+                "content": node.node.get_content(),
+                "source": node.node.metadata.get("file_name", "未知"),
+                "title": node.node.metadata.get("title", ""),
+                "score": node.score or 0,
+            }
+            for node in final
+        ]
