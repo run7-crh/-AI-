@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api import health, conversations
+from app.api import index as index_api
 from app.api.errors import register_error_handlers
 from app.services.conversation_store import ConversationStore
 from app.config import settings
@@ -41,6 +42,7 @@ async def lifespan(app: FastAPI):
         _indexer.load_or_build()
         _graph = build_graph(_indexer.get_retriever())
         chat_module.set_graph(_graph)
+        index_api.set_indexer(_indexer)
         logger.info("Graph 初始化成功")
     except Exception as e:
         logger.warning(f"Graph 初始化失败（开发期可继续）: {e}")
@@ -63,4 +65,5 @@ app.include_router(conversations.router)
 from app.api import chat  # noqa: E402
 
 app.include_router(chat.router)
+app.include_router(index_api.router)
 register_error_handlers(app)
