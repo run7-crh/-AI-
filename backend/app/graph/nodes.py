@@ -38,3 +38,25 @@ async def decompose_question_node(state: AgentState) -> dict:
         "needs_decomposition": structured["needs_decomposition"],
         "reasoning_steps": structured["reasoning_steps"],
     }
+
+
+async def multi_step_reason_node(state: AgentState) -> dict:
+    """多步推理节点。
+
+    修复设计问题 1：直接写 final_answer，主图连到 END。
+    """
+    steps_text = "\n".join([f"- {s.get('sub_query', '')}" for s in state["reasoning_steps"]])
+    user_input = f"原始问题：{state['query']}\n\n分解的子问题：\n{steps_text}\n\n请逐步推理并给出最终答案。"
+
+    result = await call_llm(
+        system_prompt=MULTI_STEP_PROMPT,
+        user_input=user_input,
+        temperature=0.5,
+        history=state.get("history", []),
+        model=settings.MODEL_PRO_REASON,
+    )
+    return {
+        "final_answer": result["text"],
+        "route_path": "decomposition",
+        "reasoning_result": result["text"],
+    }
