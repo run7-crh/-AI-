@@ -84,3 +84,34 @@ async def test_evaluate_uses_temp_0_2_regardless_of_input():
 async def test_evaluate_invalid_judge_type_raises():
     with pytest.raises(ValueError):
         await evaluate(judge_type="invalid_type", source="x")
+
+
+from app.graph.tools import retrieve, tavily_search
+
+
+@pytest.mark.asyncio
+async def test_retrieve_calls_rag_retriever():
+    mock_retriever = MagicMock()
+    mock_retriever.retrieve = MagicMock(return_value=[
+        {"content": "x", "source": "a.md", "title": "A", "score": 0.9}
+    ])
+    result = await retrieve("测试", mock_retriever, top_k=3)
+    mock_retriever.retrieve.assert_called_once_with("测试")
+    assert result[0]["content"] == "x"
+
+@pytest.mark.asyncio
+async def test_tavily_search_returns_formatted_string():
+    mock_client = MagicMock()
+    mock_client.search = MagicMock(return_value={"results": [{"content": "结果1"}, {"content": "结果2"}]})
+    with patch("app.graph.tools.TavilyClient", return_value=mock_client):
+        result = await tavily_search("test query", max_results=5)
+    assert "结果1" in result
+    assert "结果2" in result
+
+@pytest.mark.asyncio
+async def test_tavily_search_handles_empty_results():
+    mock_client = MagicMock()
+    mock_client.search = MagicMock(return_value={"results": []})
+    with patch("app.graph.tools.TavilyClient", return_value=mock_client):
+        result = await tavily_search("test")
+    assert result == ""

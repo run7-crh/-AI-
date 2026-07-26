@@ -1,7 +1,9 @@
 from typing import Optional
+import asyncio
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from pydantic import BaseModel
+from tavily import TavilyClient
 from app.config import settings
 from app.graph.prompts import IS_RELEVANT_PROMPT, IS_QUALITY_PASS_PROMPT, IS_HALLUCINATION_PROMPT
 
@@ -73,3 +75,18 @@ async def evaluate(judge_type: str, source: str, answer: str = "", query: str = 
         "passed": result["structured"]["passed"],
         "raw_output": result["structured"],
     }
+
+
+async def retrieve(query: str, rag_retriever, top_k: int = 3) -> list[dict]:
+    """调用 RAGRetriever（同步函数，用 asyncio.to_thread 包装）。"""
+    return await asyncio.to_thread(rag_retriever.retrieve, query)
+
+
+async def tavily_search(query: str, max_results: int = 5) -> str:
+    """Tavily 搜索。"""
+    client = TavilyClient(api_key=settings.TAVILY_API_KEY)
+    response = await asyncio.to_thread(
+        client.search, query=query, max_results=max_results, search_depth="basic"
+    )
+    results = response.get("results", [])
+    return "\n\n".join([f"[{i+1}] {r.get('content', '')}" for i, r in enumerate(results)])
