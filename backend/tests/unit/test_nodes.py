@@ -159,3 +159,69 @@ async def test_generate_answer_online_path_uses_online_prompt():
 
     assert result["online_answer"] == "根据最新搜索..."
     assert result["route_path"] == "online"
+
+from app.graph.nodes import quality_gate_node
+
+@pytest.mark.asyncio
+async def test_quality_gate_local_path_passes_when_no_hallucination():
+    state = AgentState(
+        query="x", conversation_id="c1", history=[],
+        rewritten_query="什么是 Agent",
+        route_path="local",
+        retrieval_result=[{"content": "c1", "source": "a.md", "title": "A", "score": 0.9}],
+        local_answer="Agent 是...",
+        judge_log=[],
+    )
+    with patch("app.graph.nodes.evaluate", new_callable=AsyncMock) as mock_eval:
+        # 两次调用：幻觉 + 答案质量
+        mock_eval.side_effect = [
+            {"judge_type": "is_hallucination", "passed": False, "raw_output": {}},  # 无幻觉（passed=False 表示无幻觉）
+            {"judge_type": "is_quality_pass", "passed": True, "raw_output": {}},     # 质量通过
+        ]
+        result = await quality_gate_node(state)
+
+    assert result["hallucination_flag"] is False
+    assert result["answer_quality_pass"] is True
+
+@pytest.mark.asyncio
+async def test_quality_gate_fallback_on_error():
+    """验证评估失败时降级到不通过。"""
+    state = AgentState(
+        query="x", conversation_id="c1", history=[],
+        rewritten_query="x",
+        route_path="online",
+        web_search_result="x",
+        online_answer="x",
+        judge_log=[],
+    )
+    with patch("app.graph.nodes.evaluate", new_callable=AsyncMock) as mock_eval:
+        mock_eval.side_effect = Exception("LLM 调用失败")
+        result = await quality_gate_node(state)
+
+    assert result["answer_quality_pass"] is False
+    assert result["hallucination_flag"] is True
+    # 验证记录了 fallback 日志
+    fallback_logs = [j for j in result["judge_log"] if j["judge_type"] == "fallback"]
+    assert len(fallback_logs) == 1
+
+@pytest.mark.asyncio
+async def test_quality_gate_online_path_uses_web_search_result():
+    state = AgentState(
+        query="x", conversation_id="c1", history=[],
+        rewritten_query="x",
+        route_path="online",
+        web_search_result="搜索结果",
+        online_answer="答案",
+        judge_log=[],
+    )
+    with patch("app.graph.nodes.evaluate", new_callable=AsyncMock) as mock_eval:
+        mock_eval.side_effect = [
+            {"judge_type": "is_hallucination", "passed": False, "raw_output": {}},
+            {"judge_type": "is_quality_pass", "passed": True, "raw_output": {}},
+        ]
+        await quality_gate_node(state)
+
+    # 验证幻觉检测用 web_search_result 作为 source
+    first_call = mock_eval.call_args_list[0]
+    assert first_call.kwargs["source"] == "搜索结果"
+    assert first_call.kwargs["answer"] == "答案"

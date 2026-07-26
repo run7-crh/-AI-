@@ -1,4 +1,8 @@
 # backend/app/graph/nodes.py
+import logging
+
+from tenacity import retry, stop_after_attempt, wait_exponential
+
 from app.graph.state import AgentState
 from app.graph.tools import call_llm, evaluate, retrieve, tavily_search
 from app.graph.prompts import (
@@ -7,6 +11,8 @@ from app.graph.prompts import (
 )
 from pydantic import BaseModel
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 class DecomposeSchema(BaseModel):
@@ -137,3 +143,45 @@ async def generate_answer_node(state: AgentState) -> dict:
             "final_answer": result["text"],
             "route_path": "local",
         }
+
+
+@retry(stop=stop_after_attempt(2), wait=wait_exponential(multiplier=1, min=1, max=4), reraise=True)
+async def quality_gate_node(state: AgentState) -> dict:
+    """生成后质量门控：幻觉检测 + 答案质量评估。"""
+    try:
+        source = (state["retrieval_result"] if state["route_path"] == "local"
+                  else state["web_search_result"])
+        answer = (state["local_answer"] if state["route_path"] == "local"
+                  else state["online_answer"])
+
+        # 1. 幻觉检测
+        halluc_judge = await evaluate(
+            judge_type="is_hallucination",
+            source=source, answer=answer, query=state["rewritten_query"],
+        )
+        state["hallucination_flag"] = halluc_judge["passed"]
+        state["judge_log"] = [halluc_judge]
+
+        # 2. 答案质量评估
+        quality_judge = await evaluate(
+            judge_type="is_quality_pass",
+            source=source, answer=answer, query=state["rewritten_query"],
+        )
+        state["answer_quality_pass"] = quality_judge["passed"]
+        state["judge_log"] = [quality_judge]
+
+        # 综合：质量通过 = 无幻觉 AND 答案质量通过
+        state["answer_quality_pass"] = (
+            not state["hallucination_flag"] and state["answer_quality_pass"]
+        )
+        return state
+    except Exception as e:
+        logger.warning(f"质量门控失败，降级到不通过: {e}")
+        state["answer_quality_pass"] = False
+        state["hallucination_flag"] = True
+        state["judge_log"] = [{
+            "judge_type": "fallback",
+            "passed": False,
+            "raw_output": {"error": str(e)},
+        }]
+        return state
