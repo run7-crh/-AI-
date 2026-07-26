@@ -3,6 +3,19 @@ from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from pydantic import BaseModel
 from app.config import settings
+from app.graph.prompts import IS_RELEVANT_PROMPT, IS_QUALITY_PASS_PROMPT, IS_HALLUCINATION_PROMPT
+
+
+JUDGE_PROMPTS = {
+    "is_relevant": IS_RELEVANT_PROMPT,
+    "is_quality_pass": IS_QUALITY_PASS_PROMPT,
+    "is_hallucination": IS_HALLUCINATION_PROMPT,
+}
+
+
+class JudgeSchema(BaseModel):
+    passed: bool
+    reason: str
 
 
 async def call_llm(
@@ -40,3 +53,23 @@ async def call_llm(
 
     response = await llm.ainvoke(messages)
     return {"text": response.content, "structured": None}
+
+
+async def evaluate(judge_type: str, source: str, answer: str = "", query: str = "") -> dict:
+    """统一评估工具。全部用 temp=0.2（修复温度不一致问题）。"""
+    if judge_type not in JUDGE_PROMPTS:
+        raise ValueError(f"Unknown judge_type: {judge_type}")
+
+    prompt = JUDGE_PROMPTS[judge_type].format(source=source, answer=answer, query=query)
+    result = await call_llm(
+        system_prompt=prompt,
+        user_input=query or "请评估",
+        temperature=0.2,
+        output_schema=JudgeSchema,
+        model=settings.MODEL_FLASH,
+    )
+    return {
+        "judge_type": judge_type,
+        "passed": result["structured"]["passed"],
+        "raw_output": result["structured"],
+    }
