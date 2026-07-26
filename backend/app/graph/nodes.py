@@ -60,3 +60,37 @@ async def multi_step_reason_node(state: AgentState) -> dict:
         "route_path": "decomposition",
         "reasoning_result": result["text"],
     }
+
+
+async def judge_relevance_node(state: AgentState) -> dict:
+    result = await evaluate(
+        judge_type="is_relevant",
+        source="",
+        query=state["rewritten_query"],
+    )
+    return {"is_relevant": result["passed"], "judge_log": [result]}
+
+
+async def rag_retrieve_node(state: AgentState, rag_retriever) -> dict:
+    """检索 + RAG 质量评估（生成前）。"""
+    # 1. 检索
+    retrieval_result = await retrieve(state["rewritten_query"], rag_retriever)
+
+    # 2. RAG 质量评估
+    source_text = "\n\n".join([r["content"] for r in retrieval_result])
+    quality_judge = await evaluate(
+        judge_type="is_quality_pass",
+        source=source_text,
+        query=state["rewritten_query"],
+    )
+
+    return {
+        "retrieval_result": retrieval_result,
+        "rag_quality_pass": quality_judge["passed"],
+        "judge_log": [quality_judge],
+    }
+
+
+async def web_search_node(state: AgentState) -> dict:
+    result = await tavily_search(state["rewritten_query"])
+    return {"web_search_result": result}

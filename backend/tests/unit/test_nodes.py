@@ -1,6 +1,6 @@
 # backend/tests/unit/test_nodes.py
 import pytest
-from unittest.mock import patch, AsyncMock
+from unittest.mock import patch, AsyncMock, MagicMock
 from app.graph.state import AgentState
 from app.graph.nodes import rewrite_query_node, decompose_question_node
 from app.config import settings
@@ -73,3 +73,54 @@ async def test_multi_step_reason_node_writes_final_answer():
     assert mock_llm.call_args.kwargs["model"] == settings.MODEL_PRO_REASON
     # 验证温度 0.5
     assert mock_llm.call_args.kwargs["temperature"] == 0.5
+
+from app.graph.nodes import judge_relevance_node, rag_retrieve_node, web_search_node
+
+@pytest.mark.asyncio
+async def test_judge_relevance_node_writes_is_relevant():
+    state = AgentState(
+        query="x", conversation_id="c1", history=[],
+        rewritten_query="什么是 Agent", judge_log=[],
+    )
+    with patch("app.graph.nodes.evaluate", new_callable=AsyncMock) as mock_eval:
+        mock_eval.return_value = {"judge_type": "is_relevant", "passed": True, "raw_output": {}}
+        result = await judge_relevance_node(state)
+    assert result["is_relevant"] is True
+    assert len(result["judge_log"]) == 1
+
+@pytest.mark.asyncio
+async def test_rag_retrieve_node_does_retrieve_and_quality_eval():
+    """验证 rag_retrieve 节点同时做检索和 RAG 质量评估。"""
+    mock_retriever = MagicMock()
+    mock_retriever.retrieve = MagicMock(return_value=[
+        {"content": "c1", "source": "a.md", "title": "A", "score": 0.9}
+    ])
+    state = AgentState(
+        query="x", conversation_id="c1", history=[],
+        rewritten_query="Agent 是什么", judge_log=[],
+    )
+    with patch("app.graph.nodes.retrieve", new_callable=AsyncMock) as mock_ret, \
+         patch("app.graph.nodes.evaluate", new_callable=AsyncMock) as mock_eval:
+        mock_ret.return_value = [{"content": "c1", "source": "a.md", "title": "A", "score": 0.9}]
+        mock_eval.return_value = {"judge_type": "is_quality_pass", "passed": True, "raw_output": {}}
+        result = await rag_retrieve_node(state, mock_retriever)
+
+    # 验证检索被调用
+    mock_ret.assert_called_once()
+    # 验证 RAG 质量评估被调用
+    mock_eval.assert_called_once()
+    assert mock_eval.call_args.kwargs["judge_type"] == "is_quality_pass"
+    # 验证 state 字段
+    assert result["retrieval_result"][0]["content"] == "c1"
+    assert result["rag_quality_pass"] is True
+
+@pytest.mark.asyncio
+async def test_web_search_node_writes_web_search_result():
+    state = AgentState(
+        query="x", conversation_id="c1", history=[],
+        rewritten_query="最新新闻", judge_log=[],
+    )
+    with patch("app.graph.nodes.tavily_search", new_callable=AsyncMock) as mock_ts:
+        mock_ts.return_value = "[1] 新闻内容"
+        result = await web_search_node(state)
+    assert result["web_search_result"] == "[1] 新闻内容"
