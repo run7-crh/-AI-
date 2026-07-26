@@ -160,6 +160,27 @@ async def test_generate_answer_online_path_uses_online_prompt():
     assert result["online_answer"] == "根据最新搜索..."
     assert result["route_path"] == "online"
 
+@pytest.mark.asyncio
+async def test_generate_answer_online_path_with_empty_search_result_does_not_fallback_to_local():
+    """回归测试 Bug 1：web_search_result 为空字符串时仍应走 online 分支，不应 KeyError。
+
+    旧实现用 `if state.get("web_search_result"):` truthy 判断，空字符串会走 local 分支
+    并访问不存在的 retrieval_result 导致 KeyError。
+    """
+    state = AgentState(
+        query="x", conversation_id="c1", history=[],
+        rewritten_query="冷门查询无结果",
+        web_search_result="",  # 空字符串
+        judge_log=[],
+    )
+    with patch("app.graph.nodes.call_llm", new_callable=AsyncMock) as mock_llm:
+        mock_llm.return_value = {"text": "未找到相关搜索结果", "structured": None}
+        result = await generate_answer_node(state)
+
+    # 必须走 online 分支，不能访问 retrieval_result
+    assert result["online_answer"] == "未找到相关搜索结果"
+    assert result["route_path"] == "online"
+
 from app.graph.nodes import quality_gate_node
 
 @pytest.mark.asyncio

@@ -1,8 +1,6 @@
 # backend/app/graph/nodes.py
 import logging
 
-from tenacity import retry, stop_after_attempt, wait_exponential
-
 from app.graph.state import AgentState
 from app.graph.tools import call_llm, evaluate, retrieve, tavily_search
 from app.graph.prompts import (
@@ -103,8 +101,12 @@ async def web_search_node(state: AgentState) -> dict:
 
 
 async def generate_answer_node(state: AgentState) -> dict:
-    """统一生成节点：根据是否走 web 路径选提示词。"""
-    if state.get("web_search_result"):
+    """统一生成节点：根据是否走 web 路径选提示词。
+
+    用 key 存在性判断而非 truthy：Tavily 返回空字符串 "" 时仍应走 online 分支，
+    否则会错误地走 local 分支并访问不存在的 retrieval_result 导致 KeyError。
+    """
+    if "web_search_result" in state:
         # 联网路径
         prompt = ONLINE_GEN_PROMPT.format(
             query=state["rewritten_query"],
@@ -145,10 +147,11 @@ async def generate_answer_node(state: AgentState) -> dict:
         }
 
 
-@retry(stop=stop_after_attempt(2), wait=wait_exponential(multiplier=1, min=1, max=4), reraise=True)
 async def quality_gate_node(state: AgentState) -> dict:
     """生成后质量门控：幻觉检测 + 答案质量评估。
 
+    retry 已下沉到 tools.evaluate，本节点只做 try/except 降级：
+    若 evaluate 重试 2 次仍失败，则降级到"质量不通过"。
     返回只含需更新字段的 dict（与其他节点风格一致），
     避免直接修改入参 state 导致 LangGraph add reducer 重复 append judge_log。
     """

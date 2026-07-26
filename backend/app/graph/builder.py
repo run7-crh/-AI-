@@ -1,4 +1,5 @@
 # backend/app/graph/builder.py
+from functools import partial
 from langgraph.graph import StateGraph, END
 
 from app.graph.state import AgentState
@@ -47,14 +48,17 @@ def build_graph(rag_retriever):
     graph.add_node("decompose_question", decompose_question_node)
     graph.add_node("multi_step_reason", multi_step_reason_node)
     graph.add_node("judge_relevance", judge_relevance_node)
-    # rag_retrieve_node 签名是 (state, rag_retriever)，用 lambda 包装注入 retriever
-    graph.add_node("rag_retrieve", lambda state: rag_retrieve_node(state, rag_retriever))
+    # rag_retrieve_node 是 async 函数，签名 (state, rag_retriever)。
+    # 用 functools.partial 注入 retriever，保持 async 性质——
+    # 若用 lambda 包装 async 函数会返回 coroutine，LangGraph 不会 await 导致
+    # InvalidUpdateError: Expected dict, got <coroutine object>.
+    graph.add_node("rag_retrieve", partial(rag_retrieve_node, rag_retriever=rag_retriever))
     graph.add_node("web_search", web_search_node)
     graph.add_node("generate_answer", generate_answer_node)
     graph.add_node("quality_gate", quality_gate_node)
-    # fallback_online 复用 web_search 节点逻辑：再次执行联网搜索后，
-    # generate_answer 会因 web_search_result 已存在走 online 路径重新生成。
-    graph.add_node("fallback_online", lambda state: web_search_node(state))
+    # fallback_online 复用 web_search 节点逻辑：直接引用同一 async 函数，
+    # LangGraph 会正确 await。
+    graph.add_node("fallback_online", web_search_node)
 
     # 入口
     graph.set_entry_point("rewrite_query")

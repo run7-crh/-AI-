@@ -4,6 +4,8 @@ import chromadb
 from pathlib import Path
 from app.rag.readers import ObsidianMarkdownReader
 from app.rag.retriever import RAGRetriever
+# 导入即触发 embedding 配置（华为云 MaaS），避免 LlamaIndex 默认用 OpenAI
+from app.rag import embedding  # noqa: F401
 
 
 class Indexer:

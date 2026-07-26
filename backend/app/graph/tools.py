@@ -4,6 +4,7 @@ from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from pydantic import BaseModel
 from tavily import TavilyClient
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_not_exception_type
 from app.config import settings
 from app.graph.prompts import IS_RELEVANT_PROMPT, IS_QUALITY_PASS_PROMPT, IS_HALLUCINATION_PROMPT
 
@@ -46,7 +47,9 @@ async def call_llm(
     messages.append(HumanMessage(content=user_input))
 
     if output_schema:
-        structured_llm = llm.with_structured_output(output_schema)
+        # DeepSeek 不支持 response_format（JSON mode），必须用 function_calling 方式。
+        # langchain_openai 新版默认可能用 json_schema，需显式指定 method。
+        structured_llm = llm.with_structured_output(output_schema, method="function_calling")
         result = await structured_llm.ainvoke(messages)
         # Pydantic V2 模型转 dict
         if hasattr(result, "model_dump"):
@@ -57,8 +60,19 @@ async def call_llm(
     return {"text": response.content, "structured": None}
 
 
+@retry(
+    stop=stop_after_attempt(2),
+    wait=wait_exponential(multiplier=1, min=1, max=4),
+    retry=retry_if_not_exception_type(ValueError),
+    reraise=True,
+)
 async def evaluate(judge_type: str, source: str, answer: str = "", query: str = "") -> dict:
-    """统一评估工具。全部用 temp=0.2（修复温度不一致问题）。"""
+    """统一评估工具。全部用 temp=0.2（修复温度不一致问题）。
+
+    retry 下沉到此：LLM 偶发失败（网络抖动/限流）时自动重试 2 次。
+    上层 quality_gate_node 仍做 try/except 降级兜底。
+    ValueError（未知 judge_type）不重试，直接抛出。
+    """
     if judge_type not in JUDGE_PROMPTS:
         raise ValueError(f"Unknown judge_type: {judge_type}")
 
