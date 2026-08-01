@@ -1,14 +1,39 @@
+import torch
 from llama_index.core.postprocessor.types import BaseNodePostprocessor
 from llama_index.core.retrievers import VectorIndexRetriever
-from llama_index.core.schema import NodeWithScore, QueryBundle
+from sentence_transformers import CrossEncoder
+
+from app.config import settings
 
 
-class HuaweiReranker(BaseNodePostprocessor):
-    """华为云 MaaS bge-reranker-v2-m3 重排器。"""
+# 模块级缓存：CrossEncoder 模型约 2GB，避免重复加载
+_cross_encoder_cache: dict[str, CrossEncoder] = {}
+
+
+def get_cross_encoder(model_name: str) -> CrossEncoder:
+    """获取（必要时加载）CrossEncoder 实例，模块级缓存。
+
+    首次调用会从 HuggingFace Hub 下载模型（约 2GB）到 RERANKER_CACHE_DIR，
+    后续从缓存加载。GPU 可用时自动使用 CUDA。
+    """
+    if model_name not in _cross_encoder_cache:
+        _cross_encoder_cache[model_name] = CrossEncoder(
+            model_name,
+            cache_folder=settings.RERANKER_CACHE_DIR,
+            device="cuda" if torch.cuda.is_available() else "cpu",
+        )
+    return _cross_encoder_cache[model_name]
+
+
+class BGEReranker(BaseNodePostprocessor):
+    """本地 BGE Reranker（bge-reranker-v2-m3），基于 sentence-transformers CrossEncoder。
+
+    与 embedding（本地 BAAI/bge-large-zh-v1.5）架构一致，离线可用。
+    """
 
     @classmethod
     def class_name(cls) -> str:
-        return "HuaweiReranker"
+        return "BGEReranker"
 
     def _postprocess_nodes(self, nodes, query_str=None, query_bundle=None):
         if not nodes:
@@ -22,23 +47,12 @@ class HuaweiReranker(BaseNodePostprocessor):
             query_str = query_bundle.query_str
 
         texts = [node.node.get_content() for node in nodes]
-        rerank_result = self._call_huawei_rerank(query_str, texts)
-        scores = rerank_result.get("scores", [])
+        model = get_cross_encoder(settings.RERANKER_MODEL)
+        # CrossEncoder.predict 接受 (query, document) 对列表，返回相关性分数
+        scores = model.predict([(query_str, t) for t in texts])
         for i, node in enumerate(nodes):
-            if i < len(scores):
-                node.score = scores[i]
+            node.score = float(scores[i])
         return sorted(nodes, key=lambda x: x.score or 0, reverse=True)
-
-    def _call_huawei_rerank(self, query: str, documents: list) -> dict:
-        """调用华为云 MaaS rerank API。
-
-        TODO: 根据华为云 MaaS 实际 API 文档补充 endpoint 和请求格式。
-        当前为占位实现，返回固定分数（按输入顺序递减）。
-        """
-        from app.config import settings
-        # 占位实现：返回按顺序递减的分数
-        # 实际应调用华为云 MaaS rerank API（httpx）
-        return {"scores": [1.0 - i * 0.1 for i in range(len(documents))]}
 
 
 class RAGRetriever:
@@ -49,7 +63,7 @@ class RAGRetriever:
             index=index,
             similarity_top_k=top_k * 3,
         )
-        self.reranker = HuaweiReranker()
+        self.reranker = BGEReranker()
         self.final_top_k = top_k
 
     def retrieve(self, query: str) -> list:

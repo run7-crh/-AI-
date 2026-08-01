@@ -18,11 +18,19 @@ class ObsidianMarkdownReader(MarkdownReader):
         content = self._strip_callouts(content)
         content = self._strip_embeds(content)
 
+        # Chroma 向量存储要求 metadata 值为 str/int/float/None，
+        # tags 在 Obsidian frontmatter 中通常是 list，需展平为字符串。
+        tags = metadata.get("tags", [])
+        if isinstance(tags, list):
+            tags = ",".join(str(t) for t in tags)
+        elif not isinstance(tags, (str, int, float, type(None))):
+            tags = str(tags)
+
         extra_info = extra_info or {}
         extra_info.update({
             "file_name": file_path.name,
             "title": metadata.get("title", file_path.stem),
-            "tags": metadata.get("tags", []),
+            "tags": tags,
             "source": str(file_path),
         })
 

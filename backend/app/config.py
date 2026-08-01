@@ -1,4 +1,9 @@
+from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# 项目根目录（backend/app/config.py → backend/app → backend → 项目根）
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
 
 class Settings(BaseSettings):
@@ -6,18 +11,23 @@ class Settings(BaseSettings):
     DEEPSEEK_API_KEY: str
     DEEPSEEK_BASE_URL: str = "https://api.deepseek.com"
 
-    # Embedding & Reranker (华为云 MaaS)
-    HUAWEI_API_KEY: str
-    HUAWEI_BASE_URL: str = "https://maas.cn-north-4.myhuaweicloud.com"
+    # Embedding & Reranker（本地 BGE，华为云 MaaS 配置已废弃）
     EMBEDDING_MODEL: str = "bge-large-zh-v1.5"
-    RERANKER_MODEL: str = "bge-reranker-v2-m3"
+    RERANKER_MODEL: str = "BAAI/bge-reranker-v2-m3"
 
     # Tavily
     TAVILY_API_KEY: str
 
-    # 知识库
-    KB_DATA_DIR: str = r"D:\Project\Self-RAG-Agent\data\raw"
+    # 知识库（相对项目根目录，避免硬编码绝对路径污染他人环境）
+    KB_DATA_DIR: str = str(_PROJECT_ROOT / "data" / "raw")
     CHROMA_PERSIST_DIR: str = "backend/data/chroma"
+    # P2-12: Chroma collection 名称可配置，默认 obsidian_kb（向后兼容）
+    CHROMA_COLLECTION_NAME: str = "obsidian_kb"
+
+    # 模型缓存目录（显式锚定到项目内，避免 LlamaIndex/sentence-transformers
+    # 回退到 Windows 默认 %LOCALAPPDATA% 造成 C 盘冗余下载）
+    EMBEDDING_CACHE_DIR: str = str(_PROJECT_ROOT / "backend" / "data" / "llama_cache")
+    RERANKER_CACHE_DIR: str = str(_PROJECT_ROOT / "backend" / "data" / "hf_home" / "hub")
 
     # SQLite
     SQLITE_PATH: str = "backend/data/agent.db"

@@ -15,7 +15,9 @@ def temp_dirs():
 
 def test_indexer_init_creates_chroma_collection(temp_dirs):
     data_dir, persist_dir = temp_dirs
-    with patch("app.rag.indexer.Settings"):
+    # P2-2: mock configure_embedding 避免触发真实模型加载
+    with patch("app.rag.indexer.Settings"), \
+         patch("app.rag.indexer.configure_embedding"):
         idx = Indexer(data_dir=data_dir, persist_dir=persist_dir)
     assert idx.chroma_collection is not None
     assert idx.data_dir == Path(data_dir)
@@ -24,6 +26,7 @@ def test_indexer_init_creates_chroma_collection(temp_dirs):
 def test_indexer_build_loads_documents(temp_dirs):
     data_dir, persist_dir = temp_dirs
     with patch("app.rag.indexer.Settings"), \
+         patch("app.rag.indexer.configure_embedding"), \
          patch("app.rag.indexer.VectorStoreIndex") as mock_vsi:
         idx = Indexer(data_dir=data_dir, persist_dir=persist_dir)
         idx.build()
@@ -33,9 +36,41 @@ def test_indexer_build_loads_documents(temp_dirs):
 
 def test_indexer_get_retriever_returns_rag_retriever(temp_dirs):
     data_dir, persist_dir = temp_dirs
-    with patch("app.rag.indexer.Settings"):
+    with patch("app.rag.indexer.Settings"), \
+         patch("app.rag.indexer.configure_embedding"):
         idx = Indexer(data_dir=data_dir, persist_dir=persist_dir)
         idx.index = MagicMock()
         r = idx.get_retriever()
         from app.rag.retriever import RAGRetriever
         assert isinstance(r, RAGRetriever)
+
+def test_indexer_load_or_build_triggers_rebuild_when_collection_empty(temp_dirs):
+    """空 collection 应触发 rebuild，而非静默加载空索引。"""
+    data_dir, persist_dir = temp_dirs
+    with patch("app.rag.indexer.Settings"), \
+         patch("app.rag.indexer.configure_embedding"), \
+         patch("app.rag.indexer.VectorStoreIndex") as mock_vsi:
+        idx = Indexer(data_dir=data_dir, persist_dir=persist_dir)
+        # collection 刚创建，count=0
+        assert idx.chroma_collection.count() == 0
+        idx.load_or_build()
+        # 应该调用 build（from_documents），而非 from_vector_store
+        mock_vsi.from_documents.assert_called_once()
+        mock_vsi.from_vector_store.assert_not_called()
+
+def test_indexer_load_or_build_loads_when_collection_has_docs(temp_dirs):
+    """非空 collection 应直接加载，不 rebuild。"""
+    data_dir, persist_dir = temp_dirs
+    with patch("app.rag.indexer.Settings"), \
+         patch("app.rag.indexer.configure_embedding"), \
+         patch("app.rag.indexer.VectorStoreIndex") as mock_vsi:
+        idx = Indexer(data_dir=data_dir, persist_dir=persist_dir)
+        # 模拟 collection 已有文档
+        idx.chroma_collection = MagicMock()
+        idx.chroma_collection.count.return_value = 10
+        idx.vector_store = MagicMock()
+        idx.storage_context = MagicMock()
+        idx.load_or_build()
+        # 应该调用 from_vector_store，而非 from_documents
+        mock_vsi.from_vector_store.assert_called_once()
+        mock_vsi.from_documents.assert_not_called()

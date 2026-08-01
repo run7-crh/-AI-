@@ -1,7 +1,6 @@
 import pytest
 from unittest.mock import patch, AsyncMock, MagicMock
-from app.graph.tools import call_llm
-from app.graph.tools import evaluate
+from app.graph.tools import call_llm, evaluate, _estimate_tokens, _truncate_history
 from pydantic import BaseModel
 
 
@@ -77,7 +76,7 @@ async def test_evaluate_uses_temp_0_2_regardless_of_input():
     structured_llm.ainvoke = AsyncMock(return_value=mock_structured)
     mock_llm.with_structured_output = MagicMock(return_value=structured_llm)
     with patch("app.graph.tools.ChatOpenAI", return_value=mock_llm) as mock_cls:
-        await evaluate(judge_type="is_hallucination", source="x", answer="y", query="z")
+        await evaluate(judge_type="is_relevant", source="x", answer="y", query="z")
     assert mock_cls.call_args.kwargs["temperature"] == 0.2
 
 @pytest.mark.asyncio
@@ -114,4 +113,71 @@ async def test_tavily_search_handles_empty_results():
     mock_client.search = MagicMock(return_value={"results": []})
     with patch("app.graph.tools.TavilyClient", return_value=mock_client):
         result = await tavily_search("test")
-    assert result == ""
+    # 空结果时返回提示字符串（非空），让 generate_answer 据此生成"无法获取实时信息"的回答
+    assert "未返回结果" in result
+
+
+@pytest.mark.asyncio
+async def test_tavily_search_handles_api_failure():
+    """Tavily API 失败时不抛异常，返回错误提示字符串让流程继续。"""
+    mock_client = MagicMock()
+    mock_client.search = MagicMock(side_effect=Exception("API key invalid"))
+    with patch("app.graph.tools.TavilyClient", return_value=mock_client):
+        result = await tavily_search("test")
+    # 不抛异常，返回含错误类型的提示
+    assert "联网搜索失败" in result
+    assert "Exception" in result
+
+
+# P1-9: Token 估算与 history 截断测试
+
+def test_estimate_tokens_empty_string():
+    assert _estimate_tokens("") == 0
+
+def test_estimate_tokens_chinese():
+    # 中文 1 字符 ≈ 1 token，估算偏保守
+    assert _estimate_tokens("你好世界") >= 1
+
+def test_estimate_tokens_english():
+    # 英文 4 字符 ≈ 1 token，估算偏保守
+    assert _estimate_tokens("hello world") >= 1
+
+def test_truncate_history_empty():
+    assert _truncate_history([]) == []
+
+def test_truncate_history_keeps_all_when_under_budget():
+    history = [
+        {"role": "user", "content": "你好"},
+        {"role": "assistant", "content": "你好，有什么可以帮您？"},
+    ]
+    result = _truncate_history(history, max_tokens=1000)
+    assert len(result) == 2
+    # 顺序保持不变
+    assert result[0]["role"] == "user"
+    assert result[1]["role"] == "assistant"
+
+def test_truncate_history_drops_oldest_when_over_budget():
+    """超出预算时从最旧的消息开始丢弃。"""
+    # P1-11: tiktoken 对重复字符计数更少（"x"*50 ≈ 7 tokens）
+    # 用中文确保每条消息 token 数足够触发截断
+    history = [
+        {"role": "user", "content": "你好世界" * 20},  # ~100 tokens
+        {"role": "assistant", "content": "你好世界" * 20},
+        {"role": "user", "content": "你好世界" * 20},
+        {"role": "assistant", "content": "你好世界" * 20},
+    ]
+    # 预算 150 tokens，每条 ~100 tokens，最多容纳 1 条（最新）
+    result = _truncate_history(history, max_tokens=150)
+    assert len(result) <= 2
+    # 保留最新的消息
+    assert result[-1]["content"] == "你好世界" * 20
+
+def test_truncate_history_always_keeps_latest_even_if_overlong():
+    """单条消息超长时也保留最新一条，避免完全丢失上下文。"""
+    history = [
+        {"role": "user", "content": "x" * 1000},
+    ]
+    # 预算 10 tokens，远小于单条消息
+    result = _truncate_history(history, max_tokens=10)
+    assert len(result) == 1
+    assert result[0]["content"] == "x" * 1000

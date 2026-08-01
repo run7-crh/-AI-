@@ -16,14 +16,6 @@ ERROR_MESSAGES = {
     "ValidationError": "请求参数无效",
 }
 
-ERROR_STATUS_CODE = {
-    "AuthenticationError": 503,
-    "RateLimitError": 429,
-    "APIConnectionError": 502,
-    "Timeout": 504,
-    "ValidationError": 422,
-}
-
 
 def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(ValueError)

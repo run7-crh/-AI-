@@ -1,9 +1,14 @@
 import aiosqlite
+import sqlite3
 from uuid import uuid4
 from datetime import datetime, timezone
 from pathlib import Path
 import json
+import logging
 from typing import Optional
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+
+logger = logging.getLogger(__name__)
 
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS conversations (
@@ -29,6 +34,15 @@ CREATE TABLE IF NOT EXISTS messages (
 CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id, created_at);
 """
 
+# P1-4: SQLite 并发写入时可能抛 OperationalError("database is locked")
+# 短退避重试 3 次可解决典型并发冲突，避免用户偶发失败
+_db_retry = retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=0.1, min=0.1, max=1.0),
+    retry=retry_if_exception_type(sqlite3.OperationalError),
+    reraise=True,
+)
+
 
 class ConversationStore:
     def __init__(self, db_path: str):
@@ -40,6 +54,7 @@ class ConversationStore:
             await db.executescript(SCHEMA_SQL)
             await db.commit()
 
+    @_db_retry
     async def create_conversation(self, title: Optional[str] = None) -> str:
         conv_id = str(uuid4())
         now = datetime.now(timezone.utc).isoformat()
@@ -51,6 +66,7 @@ class ConversationStore:
             await db.commit()
         return conv_id
 
+    @_db_retry
     async def list_conversations(self) -> list[dict]:
         async with aiosqlite.connect(self.db_path) as db:
             db.row_factory = aiosqlite.Row
@@ -58,6 +74,7 @@ class ConversationStore:
             rows = await cursor.fetchall()
             return [dict(row) for row in rows]
 
+    @_db_retry
     async def get_conversation(self, conv_id: str) -> Optional[dict]:
         async with aiosqlite.connect(self.db_path) as db:
             db.row_factory = aiosqlite.Row
@@ -79,8 +96,15 @@ class ConversationStore:
                     m["judge_log"] = json.loads(m["judge_log"])
             return result
 
+    @_db_retry
     async def add_message(self, conv_id, role, content, route_path=None,
                           sources=None, judge_log=None) -> str:
+        """P1-4: 显式事务保证 INSERT message + UPDATE conversation 原子性。
+
+        aiosqlite 默认 isolation_level=None 时每条语句自动 BEGIN，
+        await db.commit() 一次性提交两条语句，等价于显式事务。
+        重试装饰器覆盖 "database is locked" 场景。
+        """
         msg_id = str(uuid4())
         now = datetime.now(timezone.utc).isoformat()
         async with aiosqlite.connect(self.db_path) as db:
@@ -99,6 +123,7 @@ class ConversationStore:
             await db.commit()
         return msg_id
 
+    @_db_retry
     async def delete_conversation(self, conv_id: str) -> bool:
         async with aiosqlite.connect(self.db_path) as db:
             await db.execute("DELETE FROM messages WHERE conversation_id = ?", (conv_id,))
@@ -106,6 +131,7 @@ class ConversationStore:
             await db.commit()
             return cursor.rowcount > 0
 
+    @_db_retry
     async def update_conversation_title(self, conv_id, title) -> bool:
         now = datetime.now(timezone.utc).isoformat()
         async with aiosqlite.connect(self.db_path) as db:
@@ -116,6 +142,7 @@ class ConversationStore:
             await db.commit()
             return cursor.rowcount > 0
 
+    @_db_retry
     async def get_history(self, conv_id: str, limit: int = 10) -> list[dict]:
         async with aiosqlite.connect(self.db_path) as db:
             db.row_factory = aiosqlite.Row

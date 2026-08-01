@@ -22,6 +22,7 @@ ENV/
 
 # 数据库与向量库
 backend/data/
+backend/backend/
 *.db
 *.sqlite
 *.sqlite3
