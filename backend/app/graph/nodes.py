@@ -116,6 +116,19 @@ RELEVANCE_SCORE_THRESHOLD = 0.5
 # P1-4: 完整检索 avg_reranker_score 阈值，低分路径二次确认
 RELEVANCE_AVG_SCORE_THRESHOLD = 0.4
 
+# 时效性/市场数据关键词：命中则跳过检索短路，强制走 LLM 判断
+# 依据：query_log 中 2 条 useless 反馈 + eval q005 route_wrong 均为时效性问题被误短路
+TIME_SENSITIVE_KEYWORDS = (
+    "最新", "今天", "当前", "现在", "最近", "2024", "2025", "2026",
+    "性能最强", "最好", "排名", "跑分", "市场", "主流有哪些",
+    "发布", "上线", "早于",
+)
+
+
+def _is_time_sensitive(query: str) -> bool:
+    """检测问题是否含时效性/市场数据关键词，这类问题即使检索到相关文档也不能短路为 local。"""
+    return any(kw in query for kw in TIME_SENSITIVE_KEYWORDS)
+
 
 async def judge_relevance_node(state: AgentState, rag_retriever) -> dict:
     """判断问题是否与知识库相关（对齐 Dify 节点 1785000000001）。
@@ -129,12 +142,20 @@ async def judge_relevance_node(state: AgentState, rag_retriever) -> dict:
     为什么用 rewritten_query 检索：检索器需要完整问题（含指代消解后的实体）
     为什么用原始 query 给 LLM：LLM 判断相关性看问题本身，改写可能引入偏差
     """
-    # 步骤 1：轻量检索
-    try:
-        light_result = await retrieve(state["rewritten_query"], rag_retriever, top_k=1)
-    except Exception as e:
-        logger.warning(f"judge_relevance 轻量检索失败，降级到 LLM 判断: {e}")
+    # 时效性检查：命中关键词的问题跳过所有检索短路，强制走 LLM 判断
+    # 依据：query_log 中 2 条 useless + eval q005 均为时效性问题被检索短路误判为 local
+    if _is_time_sensitive(state["query"]):
+        logger.info(
+            f"judge_relevance 跳过短路（时效性关键词命中）, 直接走 LLM 判断: query={state['query']!r}"
+        )
         light_result = []
+    else:
+        # 步骤 1：轻量检索
+        try:
+            light_result = await retrieve(state["rewritten_query"], rag_retriever, top_k=1)
+        except Exception as e:
+            logger.warning(f"judge_relevance 轻量检索失败，降级到 LLM 判断: {e}")
+            light_result = []
 
     # 步骤 2：高分短路
     if light_result:
@@ -165,11 +186,17 @@ async def judge_relevance_node(state: AgentState, rag_retriever) -> dict:
         logger.info("judge_relevance 轻量检索无结果, P1-4: 降级到完整检索")
 
     # P1-4: 步骤 3：完整检索（top_k=3），用 avg_reranker_score 二次确认
-    try:
-        full_result = await retrieve(state["rewritten_query"], rag_retriever, top_k=3)
-    except Exception as e:
-        logger.warning(f"judge_relevance 完整检索失败，降级到 LLM 判断: {e}")
+    # 时效性问题已跳过短路，此处仍执行完整检索但不会短路（light_result 为空 → 进入此分支）
+    # 但为防止时效性问题被完整检索短路误判，此处也跳过
+    if _is_time_sensitive(state["query"]):
         full_result = []
+        logger.info("judge_relevance 时效性问题跳过完整检索短路, 直接走 LLM 判断")
+    else:
+        try:
+            full_result = await retrieve(state["rewritten_query"], rag_retriever, top_k=3)
+        except Exception as e:
+            logger.warning(f"judge_relevance 完整检索失败，降级到 LLM 判断: {e}")
+            full_result = []
 
     if full_result:
         avg_score = sum(r.get("score", 0) for r in full_result) / len(full_result)
@@ -432,10 +459,22 @@ async def generate_online_node(state: AgentState, config: RunnableConfig) -> dic
     """基于搜索结果生成答案（对齐 Dify 节点 1784713973176）。
 
     call_llm 已有 retry（3 次），此处降级兜底。
+    P2 优化：检测搜索失败，设置 quality_warning 提示用户。
     """
+    search_result = state["web_search_result"]
+    # 检测搜索失败标识（tavily_search 失败时返回的提示字符串）
+    search_failed = (
+        search_result.startswith("（联网搜索失败")
+        or search_result.startswith("（联网搜索未返回结果")
+    )
+    quality_warning = None
+    if search_failed:
+        quality_warning = "联网搜索失败，已基于有限信息生成回答，建议稍后重试"
+        logger.warning(f"generate_online 搜索失败兜底: query={state['query']!r}")
+
     prompt = ONLINE_GEN_PROMPT.format(
         query=state["rewritten_query"],
-        search_result=state["web_search_result"],
+        search_result=search_result,
     )
     try:
         result = await call_llm(
@@ -450,12 +489,14 @@ async def generate_online_node(state: AgentState, config: RunnableConfig) -> dic
         return {
             "final_answer": result["text"],
             "route_path": "online",
+            "quality_warning": quality_warning,
         }
     except Exception as e:
         logger.error(f"generate_online LLM 调用失败（retry 已耗尽）: {e}")
         return {
             "final_answer": f"抱歉，生成回答时遇到问题（{type(e).__name__}），请稍后重试。",
             "route_path": "online",
+            "quality_warning": quality_warning,
         }
 
 
@@ -482,15 +523,32 @@ async def multi_step_reason_node(state: AgentState, config: RunnableConfig, rag_
     sub_query_texts = deduped[:5]
     sub_queries_text = "\n".join([f"{i+1}. {sq}" for i, sq in enumerate(sub_query_texts)])
 
-    # 对每个子问题调用 RAG 检索
-    context_parts = []
+    # 对每个子问题调用 RAG 检索，保留原始 source 字段（修复 multi_hop 引用正确率 0% 问题）
+    all_results = []  # 存所有子问题的检索结果（含 source）
     if rag_retriever:
         for sq in sub_query_texts:
             if sq:
                 results = await retrieve(sq, rag_retriever)
-                for r in results:
-                    context_parts.append(r["content"])
-    context = "\n\n".join(context_parts) if context_parts else "（无相关知识库内容）"
+                all_results.extend(results)
+
+    # 去重：同一文档可能被多个子问题检索到，按 (source, content 前 100 字) 去重
+    seen_keys = set()
+    deduped_results = []
+    for r in all_results:
+        key = (r.get("source", ""), r.get("content", "")[:100])
+        if key not in seen_keys:
+            seen_keys.add(key)
+            deduped_results.append(r)
+
+    # context 带文档名编号，便于 LLM 用 [来源：文档名] 标注（修复 q009 疑似幻觉问题）
+    if deduped_results:
+        context_parts = [
+            f"【文档：{r.get('source', '未知')}】\n{r.get('content', '')}"
+            for r in deduped_results
+        ]
+        context = "\n\n".join(context_parts)
+    else:
+        context = "（无相关知识库内容）"
 
     prompt = MULTI_STEP_PROMPT.format(
         sub_queries=sub_queries_text,
@@ -510,7 +568,8 @@ async def multi_step_reason_node(state: AgentState, config: RunnableConfig, rag_
         return {
             "final_answer": result["text"],
             "route_path": "decomposition",
-            "retrieval_result": [{"content": c, "source": "multi_step", "title": "", "score": 0} for c in context_parts],
+            # 保留原始 source 字段，供 meta 事件 sources 聚合 + 评估脚本校验引用正确率
+            "retrieval_result": deduped_results,
         }
     except Exception as e:
         logger.error(f"multi_step_reason LLM 调用失败（retry 已耗尽）: {e}")

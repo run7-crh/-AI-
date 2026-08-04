@@ -1,17 +1,28 @@
 <!-- frontend/src/components/AssistantMessage.vue -->
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import type { Message } from '@/types'
+import type { Message, FeedbackRating, UselessReason } from '@/types'
 import { useChatStore } from '@/stores/chat'
-import { Copy, Check, RefreshCw } from 'lucide-vue-next'
+import { Copy, Check, RefreshCw, ThumbsUp, ThumbsDown, Bug } from 'lucide-vue-next'
 import MarkdownRenderer from './MarkdownRenderer.vue'
 import StageIndicator from './StageIndicator.vue'
 import SourceCard from './SourceCard.vue'
 import JudgeBadges from './JudgeBadges.vue'
+import { putFeedback } from '@/api/feedback'
 
 const props = defineProps<{ message: Message }>()
 const store = useChatStore()
 const copied = ref(false)
+
+// 第 2 阶段：反馈状态（已反馈时按钮置灰）
+const feedbackState = ref<FeedbackRating | null>(null)
+const showUselessReasons = ref(false)
+const uselessReasonOptions: { value: UselessReason; label: string }[] = [
+  { value: 'irrelevant', label: '答非所问' },
+  { value: 'hallucination', label: '编造' },
+  { value: 'verbose', label: '太啰嗦' },
+  { value: 'wrong_route', label: '路由错误' },
+]
 
 // 无来源卡片时（online/multi_step_reason 路径），清理 LLM 可能残留的 [1] [2] 引用标记。
 // 正则只匹配"前面是空格或行首 + [数字] + 后面是空格/中文标点/行尾"，
@@ -38,6 +49,26 @@ async function copyContent(text: string) {
 
 function regenerate() {
   store.regenerateResponse(props.message.id)
+}
+
+// 第 2 阶段：提交反馈。useless 必须先选二级原因（避免无效请求）
+async function submitFeedback(rating: FeedbackRating, uselessReason?: UselessReason) {
+  if (!props.message.query_log_id || feedbackState.value !== null) return
+  if (rating === 'useless' && !uselessReason) {
+    showUselessReasons.value = true
+    return
+  }
+  try {
+    await putFeedback({
+      query_log_id: props.message.query_log_id,
+      rating,
+      useless_reason: uselessReason,
+    })
+    feedbackState.value = rating
+    showUselessReasons.value = false
+  } catch {
+    // 失败静默，不阻塞用户
+  }
 }
 </script>
 
@@ -100,6 +131,58 @@ function regenerate() {
           <RefreshCw class="w-3 h-3" />
           重新生成
         </button>
+      </div>
+
+      <!-- 第 2 阶段：反馈按钮区（非流式且已绑定 query_log_id 时展示） -->
+      <div
+        v-if="!message.isStreaming && message.query_log_id"
+        class="flex items-center gap-1 flex-wrap px-1"
+      >
+        <!-- 👍 有帮助 -->
+        <button
+          @click="submitFeedback('useful')"
+          :disabled="feedbackState !== null"
+          class="flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded transition-colors disabled:cursor-default"
+          :class="feedbackState === 'useful'
+            ? 'text-green-600 bg-green-50'
+            : 'text-gray-500 hover:text-stone-700 hover:bg-gray-100 disabled:hover:text-gray-500 disabled:hover:bg-transparent'"
+        >
+          <ThumbsUp class="w-3 h-3" /> 有帮助
+        </button>
+        <!-- 👎 无帮助 -->
+        <button
+          @click="submitFeedback('useless')"
+          :disabled="feedbackState !== null"
+          class="flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded transition-colors disabled:cursor-default"
+          :class="feedbackState === 'useless'
+            ? 'text-red-600 bg-red-50'
+            : 'text-gray-500 hover:text-stone-700 hover:bg-gray-100 disabled:hover:text-gray-500 disabled:hover:bg-transparent'"
+        >
+          <ThumbsDown class="w-3 h-3" /> 无帮助
+        </button>
+        <!-- 🐛 错误 -->
+        <button
+          @click="submitFeedback('bug')"
+          :disabled="feedbackState !== null"
+          class="flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded transition-colors disabled:cursor-default"
+          :class="feedbackState === 'bug'
+            ? 'text-amber-600 bg-amber-50'
+            : 'text-gray-500 hover:text-stone-700 hover:bg-gray-100 disabled:hover:text-gray-500 disabled:hover:bg-transparent'"
+        >
+          <Bug class="w-3 h-3" /> 错误
+        </button>
+
+        <!-- 二级原因选择（仅 useless 展开时） -->
+        <div v-if="showUselessReasons" class="flex items-center gap-1 ml-2">
+          <button
+            v-for="r in uselessReasonOptions"
+            :key="r.value"
+            @click="submitFeedback('useless', r.value)"
+            class="text-[11px] px-1.5 py-0.5 rounded text-gray-600 hover:text-red-700 hover:bg-red-50 border border-gray-200"
+          >
+            {{ r.label }}
+          </button>
+        </div>
       </div>
 
       <!-- 引用来源 -->

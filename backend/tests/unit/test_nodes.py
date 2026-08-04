@@ -154,6 +154,47 @@ async def test_decompose_question_node_needs_decomposition():
     assert len(result["reasoning_steps"]) == 2
 
 
+@pytest.mark.asyncio
+async def test_decompose_question_node_multi_concept_relation():
+    """多概念关联类：needs_decomposition=false（防 L48 误触，路由稳定性修复）。"""
+    state = AgentState(
+        query="x", conversation_id="c1", history=[],
+        rewritten_query="RAG和模型微调和幻觉有什么关联", judge_log=[],
+    )
+    with patch("app.graph.nodes.call_llm", new_callable=AsyncMock) as mock_llm:
+        mock_llm.return_value = {
+            "text": "",
+            "structured": {"is_chitchat": False, "needs_decomposition": False, "reasoning_steps": []},
+        }
+        result = await decompose_question_node(state)
+    assert result["needs_decomposition"] is False
+    assert result["reasoning_steps"] == []
+
+
+@pytest.mark.asyncio
+async def test_decompose_question_node_explicit_respective():
+    """显式"分别"并列子问题：needs_decomposition=true。"""
+    state = AgentState(
+        query="x", conversation_id="c1", history=[],
+        rewritten_query="RAG、模型微调、幻觉分别是什么", judge_log=[],
+    )
+    with patch("app.graph.nodes.call_llm", new_callable=AsyncMock) as mock_llm:
+        mock_llm.return_value = {
+            "text": "",
+            "structured": {
+                "is_chitchat": False, "needs_decomposition": True,
+                "reasoning_steps": [
+                    {"sub_query": "RAG 是什么"},
+                    {"sub_query": "模型微调是什么"},
+                    {"sub_query": "幻觉是什么"},
+                ],
+            },
+        }
+        result = await decompose_question_node(state)
+    assert result["needs_decomposition"] is True
+    assert len(result["reasoning_steps"]) == 3
+
+
 # ============================================================================
 # judge_relevance_node（轻量检索+阈值短路，修复 🔴 误判）
 # ============================================================================

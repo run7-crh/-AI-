@@ -222,6 +222,8 @@ export const useChatStore = defineStore('chat', () => {
               m.judge_log = meta.judge_log
               // P1-3: 接收质量警告（仅 quality_fail 路径有值）
               if (meta.quality_warning) m.quality_warning = meta.quality_warning
+              // 第 2 阶段：绑定 query_log_id，供反馈接口使用
+              if (meta.query_log_id) m.query_log_id = meta.query_log_id
             }
           },
           onError: (msg) => {

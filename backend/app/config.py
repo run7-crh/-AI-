@@ -20,7 +20,7 @@ class Settings(BaseSettings):
 
     # 知识库（相对项目根目录，避免硬编码绝对路径污染他人环境）
     KB_DATA_DIR: str = str(_PROJECT_ROOT / "data" / "raw")
-    CHROMA_PERSIST_DIR: str = "backend/data/chroma"
+    CHROMA_PERSIST_DIR: str = str(_PROJECT_ROOT / "backend" / "data" / "chroma")
     # P2-12: Chroma collection 名称可配置，默认 obsidian_kb（向后兼容）
     CHROMA_COLLECTION_NAME: str = "obsidian_kb"
 
@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     RERANKER_CACHE_DIR: str = str(_PROJECT_ROOT / "backend" / "data" / "hf_home" / "hub")
 
     # SQLite
-    SQLITE_PATH: str = "backend/data/agent.db"
+    SQLITE_PATH: str = str(_PROJECT_ROOT / "backend" / "data" / "agent.db")
 
     # CORS
     CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://localhost:4173"]

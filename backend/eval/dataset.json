@@ -1,0 +1,211 @@
+{
+  "version": "1.0",
+  "created_at": "2026-08-02T00:00:00+08:00",
+  "source_distribution": {
+    "seed": 20,
+    "ai_expanded": 0,
+    "from_query_log": 0
+  },
+  "questions": [
+    {
+      "id": "q001",
+      "question": "什么是 RAG 检索增强生成？",
+      "acceptable_routes": ["local"],
+      "expected_answer_keywords": ["检索", "生成", "外部知识"],
+      "expected_source": "RAG 检索增强生成.md",
+      "difficulty": "easy",
+      "category": "knowledge_hit",
+      "source_type": "seed"
+    },
+    {
+      "id": "q002",
+      "question": "BGE-reranker-v2-m3 在 RAG 检索中起什么作用？",
+      "acceptable_routes": ["local"],
+      "expected_answer_keywords": ["重排", "reranker", "排序"],
+      "expected_source": "RAG 检索增强生成.md",
+      "difficulty": "medium",
+      "category": "knowledge_hit",
+      "source_type": "seed"
+    },
+    {
+      "id": "q003",
+      "question": "Transformer 的自注意力机制是怎么工作的？",
+      "acceptable_routes": ["local"],
+      "expected_answer_keywords": ["注意力", "query", "key", "value"],
+      "expected_source": "Transformer.md",
+      "difficulty": "medium",
+      "category": "knowledge_hit",
+      "source_type": "seed"
+    },
+    {
+      "id": "q004",
+      "question": "Agent 的记忆机制有哪几种类型？",
+      "acceptable_routes": ["local"],
+      "expected_answer_keywords": ["短期", "长期", "记忆"],
+      "expected_source": "Agent记忆机制.md",
+      "difficulty": "easy",
+      "category": "knowledge_hit",
+      "source_type": "seed"
+    },
+    {
+      "id": "q005",
+      "question": "2026年最新的开源 RAG 框架有哪些？",
+      "acceptable_routes": ["online"],
+      "expected_answer_keywords": [],
+      "expected_source": null,
+      "difficulty": "medium",
+      "category": "knowledge_missing",
+      "source_type": "seed"
+    },
+    {
+      "id": "q006",
+      "question": "DeepSeek-V3 的最新评测跑分是多少？",
+      "acceptable_routes": ["online"],
+      "expected_answer_keywords": [],
+      "expected_source": null,
+      "difficulty": "medium",
+      "category": "knowledge_missing",
+      "source_type": "seed"
+    },
+    {
+      "id": "q007",
+      "question": "今天 A 股 AI 概念股表现如何？",
+      "acceptable_routes": ["online"],
+      "expected_answer_keywords": [],
+      "expected_source": null,
+      "difficulty": "easy",
+      "category": "knowledge_missing",
+      "source_type": "seed"
+    },
+    {
+      "id": "q008",
+      "question": "LangChain 0.3 版本有哪些 breaking changes？",
+      "acceptable_routes": ["online"],
+      "expected_answer_keywords": [],
+      "expected_source": null,
+      "difficulty": "hard",
+      "category": "knowledge_missing",
+      "source_type": "seed"
+    },
+    {
+      "id": "q009",
+      "question": "Agent 和 Workflow 的区别主要有哪些？",
+      "acceptable_routes": ["decomposition"],
+      "expected_answer_keywords": ["Agent", "Workflow", "区别"],
+      "expected_source": "Agent与Workflow的区别.md",
+      "difficulty": "easy",
+      "category": "multi_hop",
+      "source_type": "seed"
+    },
+    {
+      "id": "q010",
+      "question": "RAG 和 Fine-tuning 的区别是什么？",
+      "acceptable_routes": ["decomposition"],
+      "expected_answer_keywords": ["RAG", "微调", "区别"],
+      "expected_source": "微调.md",
+      "difficulty": "medium",
+      "category": "multi_hop",
+      "source_type": "seed"
+    },
+    {
+      "id": "q011",
+      "question": "Function Calling 和 Tool Calling 的区别和联系？",
+      "acceptable_routes": ["decomposition"],
+      "expected_answer_keywords": ["Function", "Tool", "调用"],
+      "expected_source": "Function Calling 函数调用.md",
+      "difficulty": "medium",
+      "category": "multi_hop",
+      "source_type": "seed"
+    },
+    {
+      "id": "q012",
+      "question": "对比 Embedding 和向量数据库在 RAG 中的不同作用",
+      "acceptable_routes": ["decomposition"],
+      "expected_answer_keywords": ["Embedding", "向量", "数据库"],
+      "expected_source": "Embedding 向量嵌入.md",
+      "difficulty": "hard",
+      "category": "multi_hop",
+      "source_type": "seed"
+    },
+    {
+      "id": "q013",
+      "question": "你好",
+      "acceptable_routes": ["chitchat"],
+      "expected_answer_keywords": [],
+      "expected_source": null,
+      "difficulty": "easy",
+      "category": "routing_test",
+      "source_type": "seed"
+    },
+    {
+      "id": "q014",
+      "question": "RAG、微调和幻觉有什么关联？",
+      "acceptable_routes": ["local"],
+      "expected_answer_keywords": ["RAG", "微调", "幻觉"],
+      "expected_source": null,
+      "difficulty": "medium",
+      "category": "routing_test",
+      "source_type": "seed"
+    },
+    {
+      "id": "q015",
+      "question": "什么是 ReAct 推理框架？",
+      "acceptable_routes": ["local"],
+      "expected_answer_keywords": ["ReAct", "推理", "行动"],
+      "expected_source": "ReAct 推理框架.md",
+      "difficulty": "easy",
+      "category": "routing_test",
+      "source_type": "seed"
+    },
+    {
+      "id": "q016",
+      "question": "帮我总结一下 Transformer 的核心思想",
+      "acceptable_routes": ["local"],
+      "expected_answer_keywords": ["Transformer", "注意力", "编码"],
+      "expected_source": "Transformer.md",
+      "difficulty": "medium",
+      "category": "routing_test",
+      "source_type": "seed"
+    },
+    {
+      "id": "q017",
+      "question": "知识库里提到的 LlamaIndex 0.3 的具体用法是什么？",
+      "acceptable_routes": ["local"],
+      "expected_answer_keywords": [],
+      "expected_source": null,
+      "difficulty": "hard",
+      "category": "hallucination_test",
+      "source_type": "seed"
+    },
+    {
+      "id": "q018",
+      "question": "BGE-reranker 在本项目中的 GPU 利用率是多少？",
+      "acceptable_routes": ["local", "online"],
+      "expected_answer_keywords": [],
+      "expected_source": null,
+      "difficulty": "hard",
+      "category": "hallucination_test",
+      "source_type": "seed"
+    },
+    {
+      "id": "q019",
+      "question": "LangGraph 的 checkpointer 具体怎么实现的？",
+      "acceptable_routes": ["local"],
+      "expected_answer_keywords": [],
+      "expected_source": "LangChain-LangGraph.md",
+      "difficulty": "hard",
+      "category": "hallucination_test",
+      "source_type": "seed"
+    },
+    {
+      "id": "q020",
+      "question": "向量数据库的 HNSW 算法的参数调优方法？",
+      "acceptable_routes": ["local"],
+      "expected_answer_keywords": ["HNSW", "参数"],
+      "expected_source": "向量数据库.md",
+      "difficulty": "hard",
+      "category": "hallucination_test",
+      "source_type": "seed"
+    }
+  ]
+}

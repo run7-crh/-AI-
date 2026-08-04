@@ -6,6 +6,8 @@ from typing import Optional, Literal
 class ChatRequest(BaseModel):
     conversation_id: str
     message: str = Field(..., min_length=1, max_length=2000)
+    # 第 1 阶段：朋友测试时区分谁问的（如 'A'/'B'/'C'），用于 query_log 诊断
+    user_label: Optional[str] = Field(None, max_length=50)
 
 
 class ConversationCreate(BaseModel):

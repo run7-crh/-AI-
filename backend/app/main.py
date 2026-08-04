@@ -10,9 +10,12 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from app.api import health, conversations
 from app.api import index as index_api
+from app.api import feedback
 from app.api.errors import register_error_handlers
 from app.extensions import limiter
 from app.services.conversation_store import ConversationStore
+from app.services.query_log_service import QueryLogStore
+from app.services.feedback_service import FeedbackStore
 from app.config import settings
 
 # 日志文件路径（uvicorn 启动后会覆盖 basicConfig，所以在 lifespan 中再配置一次）
@@ -23,6 +26,8 @@ _log_file = os.path.join(_log_dir, "app.log")
 logger = logging.getLogger(__name__)
 
 _store: ConversationStore = None
+_query_log_store: QueryLogStore = None
+_feedback_store: FeedbackStore = None
 
 
 def _setup_file_logging() -> None:
@@ -57,6 +62,21 @@ def get_store() -> ConversationStore:
     return _store
 
 
+def get_query_log_store() -> QueryLogStore:
+    """供 chat.py 落库用。允许返回 None：测试环境可能不初始化。
+
+    chat.py 内部对 None 做兜底，避免单元测试必须 mock QueryLogStore。
+    """
+    return _query_log_store
+
+
+def get_feedback_store() -> FeedbackStore:
+    """供 feedback API 用。"""
+    if _feedback_store is None:
+        raise RuntimeError("FeedbackStore not initialized")
+    return _feedback_store
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global _store
@@ -68,6 +88,19 @@ async def lifespan(app: FastAPI):
     _store = ConversationStore(db_path)
     await _store.init()
     conversations.set_store(_store)
+
+    # 第 1 阶段：query_log 表与 conversations 共享同一 db 文件，表结构独立
+    global _query_log_store
+    _query_log_store = QueryLogStore(db_path)
+    await _query_log_store.init()
+    logger.info("QueryLogStore 初始化完成")
+
+    # 第 2 阶段：feedback 表与 query_log 表共享同一 db 文件，FK 关联
+    global _feedback_store
+    _feedback_store = FeedbackStore(db_path)
+    await _feedback_store.init()
+    feedback.set_store(_feedback_store)
+    logger.info("FeedbackStore 初始化完成")
 
     # P0-3: Reranker 预热（GPU 加速，避免首次请求卡顿 2GB 模型加载）
     try:
@@ -112,6 +145,7 @@ app.add_middleware(
 )
 app.include_router(health.router)
 app.include_router(conversations.router)
+app.include_router(feedback.router)
 
 # chat 模块依赖 get_store，必须在 get_store 定义后导入
 from app.api import chat  # noqa: E402

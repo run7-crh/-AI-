@@ -42,6 +42,9 @@ dist/
 *.log
 logs/
 
+# 评估报告运行产物（保留 eval/run_eval.py 和 dataset.json）
+backend/eval/reports/
+
 # 操作系统
 Thumbs.db
 

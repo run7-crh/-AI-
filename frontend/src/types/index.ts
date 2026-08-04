@@ -30,6 +30,7 @@ export interface Message {
   sources?: Source[]
   judge_log?: JudgeResult[]
   quality_warning?: string  // P1-3: 质量不合格时的警告文本
+  query_log_id?: string  // 第 2 阶段：绑定 query_log，供反馈接口使用
   created_at: string
   // 前端运行时状态（不持久化）
   isStreaming?: boolean
@@ -43,6 +44,7 @@ export interface ConversationDetail extends Conversation {
 export interface ChatRequest {
   conversation_id: string
   message: string
+  user_label?: string  // 第 2 阶段：朋友测试时区分谁问的（如 'A'/'B'/'C'）
 }
 
 export interface ChatMeta {
@@ -50,6 +52,36 @@ export interface ChatMeta {
   sources?: Source[]
   judge_log?: JudgeResult[]
   quality_warning?: string  // P1-3: 质量警告
+  query_log_id?: string  // 第 2 阶段：供前端绑定反馈
+}
+
+// 第 2 阶段：用户反馈系统
+export type FeedbackRating = 'useful' | 'useless' | 'bug'
+export type UselessReason = 'irrelevant' | 'hallucination' | 'verbose' | 'wrong_route'
+
+export interface FeedbackRequest {
+  query_log_id: string
+  rating: FeedbackRating
+  useless_reason?: UselessReason
+  comment?: string
+}
+
+export interface FeedbackResponse {
+  ok: boolean
+  feedback_id: string
+}
+
+export interface FeedbackStats {
+  total: number
+  useful_count: number
+  useless_count: number
+  bug_count: number
+  useless_reason_breakdown: {
+    irrelevant: number
+    hallucination: number
+    verbose: number
+    wrong_route: number
+  }
 }
 
 export interface StreamCallbacks {
