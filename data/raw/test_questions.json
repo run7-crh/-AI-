@@ -1,0 +1,695 @@
+[
+  {
+    "question": "RAG 是什么？它主要解决大模型的哪些问题？",
+    "category": "knowledge_hit",
+    "expected_route": "local",
+    "difficulty": "easy",
+    "notes": "基础概念题，直接命中 RAG 定义和三大痛点"
+  },
+  {
+    "question": "什么是 Agent 智能体？跟普通聊天机器人有啥区别？",
+    "category": "knowledge_hit",
+    "expected_route": "local",
+    "difficulty": "easy",
+    "notes": "基础概念题，考察 Agent 定义和与 ChatBot 的区别"
+  },
+  {
+    "question": "向量数据库和传统数据库有啥本质区别？",
+    "category": "knowledge_hit",
+    "expected_route": "local",
+    "difficulty": "easy",
+    "notes": "基础对比题，考察精确匹配 vs 语义匹配的核心差异"
+  },
+  {
+    "question": "Prompt Engineering 的五大构成要素是哪些？",
+    "category": "knowledge_hit",
+    "expected_route": "local",
+    "difficulty": "easy",
+    "notes": "基础概念题，考察 Instruction/Context/Examples/Input/Output"
+  },
+  {
+    "question": "MCP 协议是什么？它解决了什么问题？",
+    "category": "knowledge_hit",
+    "expected_route": "local",
+    "difficulty": "easy",
+    "notes": "基础概念题，考察 MCP 定义和 M×N 集成困境"
+  },
+  {
+    "question": "LLM 的三阶段训练流程是什么？每个阶段的产出是什么？",
+    "category": "knowledge_hit",
+    "expected_route": "local",
+    "difficulty": "easy",
+    "notes": "基础流程题，考察预训练→SFT→RLHF 三阶段"
+  },
+  {
+    "question": "什么是模型幻觉？产生的根本原因是什么？",
+    "category": "knowledge_hit",
+    "expected_route": "local",
+    "difficulty": "easy",
+    "notes": "基础概念题，考察幻觉定义和概率语言模型的本质矛盾"
+  },
+  {
+    "question": "Agent 的四大模块是什么？各自负责什么？",
+    "category": "knowledge_hit",
+    "expected_route": "local",
+    "difficulty": "easy",
+    "notes": "Agent 基础题，考察 Planning/Memory/Action/Tools"
+  },
+  {
+    "question": "Anthropic 对 Agent 和 Workflow 的权威定义分别是什么？",
+    "category": "knowledge_hit",
+    "expected_route": "local",
+    "difficulty": "easy",
+    "notes": "基础定义题，考察控制权归属的核心区分"
+  },
+  {
+    "question": "Parallel Function Calling 怎么处理？tool_call_id 的作用是什么？",
+    "category": "knowledge_hit",
+    "expected_route": "local",
+    "difficulty": "easy",
+    "notes": "Function Calling 基础题，考察并行调用和结果匹配机制"
+  },
+  {
+    "question": "Workflow 的五种编排模式分别是什么？",
+    "category": "knowledge_hit",
+    "expected_route": "local",
+    "difficulty": "easy",
+    "notes": "架构基础题，考察 Anthropic 定义的五种 Workflow 模式"
+  },
+  {
+    "question": "LLM 推理为什么慢？有哪些加速方法？",
+    "category": "knowledge_hit",
+    "expected_route": "local",
+    "difficulty": "easy",
+    "notes": "LLM 推理基础题，考察自回归解码瓶颈和常见加速技术"
+  },
+  {
+    "question": "ReAct 模式的三要素是什么？跟 CoT 有啥本质区别？",
+    "category": "knowledge_hit",
+    "expected_route": "local",
+    "difficulty": "easy",
+    "notes": "推理框架基础题，考察 TAO 循环和闭卷/开卷考试的类比"
+  },
+  {
+    "question": "什么是 Prompt Injection？怎么防御？",
+    "category": "knowledge_hit",
+    "expected_route": "local",
+    "difficulty": "easy",
+    "notes": "安全基础题，考察提示词注入攻击和常见防御策略"
+  },
+  {
+    "question": "CoT 思维链为什么有效？它有什么局限性？",
+    "category": "knowledge_hit",
+    "expected_route": "local",
+    "difficulty": "easy",
+    "notes": "Prompt Engineering 基础题，考察 CoT 原理和适用边界"
+  },
+  {
+    "question": "Transformer 里面 Self-Attention 的公式是啥？为啥要除以根号 dk？",
+    "category": "knowledge_hit",
+    "expected_route": "local",
+    "difficulty": "medium",
+    "notes": "技术原理题，考察 Transformer 核心公式和数值稳定性理解"
+  },
+  {
+    "question": "LoRA 的核心思想是什么？r 和 alpha 分别代表什么？",
+    "category": "knowledge_hit",
+    "expected_route": "local",
+    "difficulty": "medium",
+    "notes": "微调技术原理题，考察 LoRA 低秩分解和关键参数"
+  },
+  {
+    "question": "HNSW 索引是怎么工作的？为啥说它像高速公路系统？",
+    "category": "knowledge_hit",
+    "expected_route": "local",
+    "difficulty": "medium",
+    "notes": "向量数据库索引算法题，考察分层可导航小世界图原理"
+  },
+  {
+    "question": "Function Calling 的完整交互流程是怎样的？模型会自己执行函数吗？",
+    "category": "knowledge_hit",
+    "expected_route": "local",
+    "difficulty": "medium",
+    "notes": "技术流程题，考察五步交互机制和模型不执行函数的关键认知"
+  },
+  {
+    "question": "LangChain 和 LangGraph 各自解决什么问题？两者是什么关系？",
+    "category": "knowledge_hit",
+    "expected_route": "local",
+    "difficulty": "medium",
+    "notes": "框架对比题，考察组件库 vs 状态机编排引擎的定位差异"
+  },
+  {
+    "question": "Embedding 向量嵌入的核心原理是什么？分布式假设怎么理解？",
+    "category": "knowledge_hit",
+    "expected_route": "local",
+    "difficulty": "medium",
+    "notes": "技术原理题，考察分布式假设和语义空间映射"
+  },
+  {
+    "question": "Agent 记忆机制分哪几层？分别对应人类认知的什么记忆类型？",
+    "category": "knowledge_hit",
+    "expected_route": "local",
+    "difficulty": "medium",
+    "notes": "记忆机制题，考察情景记忆/语义记忆/程序记忆的映射"
+  },
+  {
+    "question": "Harness Engineering 驾驭工程是做什么的？它和 Prompt Engineering 有啥关系？",
+    "category": "knowledge_hit",
+    "expected_route": "local",
+    "difficulty": "medium",
+    "notes": "新兴概念题，考察外循环系统定义和三层抽象关系"
+  },
+  {
+    "question": "RAG 的工作流程中离线阶段和在线阶段分别包含哪些步骤？",
+    "category": "knowledge_hit",
+    "expected_route": "local",
+    "difficulty": "medium",
+    "notes": "流程题，考察索引构建和检索生成的完整步骤"
+  },
+  {
+    "question": "Chunk 策略有哪几种？各自适合什么场景？",
+    "category": "knowledge_hit",
+    "expected_route": "local",
+    "difficulty": "medium",
+    "notes": "RAG 工程实践题，考察四种分块策略和 trade-off"
+  },
+  {
+    "question": "如何提升 RAG 的检索准确率？优化优先级是怎样的？",
+    "category": "knowledge_hit",
+    "expected_route": "local",
+    "difficulty": "medium",
+    "notes": "RAG 工程实践题，考察从混合检索到自适应检索的优化路径"
+  },
+  {
+    "question": "余弦相似度和欧氏距离有什么区别？文本场景为啥默认用余弦？",
+    "category": "knowledge_hit",
+    "expected_route": "local",
+    "difficulty": "medium",
+    "notes": "向量检索基础题，考察距离度量选择和文本向量特性"
+  },
+  {
+    "question": "Milvus、Qdrant、Chroma 这三个向量数据库怎么选？",
+    "category": "knowledge_hit",
+    "expected_route": "local",
+    "difficulty": "medium",
+    "notes": "技术选型题，考察不同规模场景下的推荐方案"
+  },
+  {
+    "question": "Self-RAG 和 CRAG 的核心思想分别是什么？",
+    "category": "knowledge_hit",
+    "expected_route": "local",
+    "difficulty": "medium",
+    "notes": "进阶 RAG 架构题，考察自适应检索机制的核心差异"
+  },
+  {
+    "question": "MCP 的三大能力原语 Tools、Resources、Prompts 分别由谁控制？",
+    "category": "knowledge_hit",
+    "expected_route": "local",
+    "difficulty": "medium",
+    "notes": "MCP 协议细节题，考察三层控制权分离的设计"
+  },
+  {
+    "question": "Structured Output 和 Function Calling 是什么关系？",
+    "category": "knowledge_hit",
+    "expected_route": "local",
+    "difficulty": "medium",
+    "notes": "Function Calling 进阶题，考察姊妹能力的关系定位"
+  },
+  {
+    "question": "QLoRA 相比 LoRA 多了哪些核心组件？它的核心价值是什么？",
+    "category": "knowledge_hit",
+    "expected_route": "local",
+    "difficulty": "hard",
+    "notes": "微调进阶题，考察 NF4/双重量化/分页优化器三个组件"
+  },
+  {
+    "question": "SFT 和 RLHF 分别解决什么问题？DPO 为啥能替代 PPO？",
+    "category": "knowledge_hit",
+    "expected_route": "local",
+    "difficulty": "hard",
+    "notes": "训练范式对比题，考察 SFT/RLHF/DPO 的差异和工程复杂度"
+  },
+  {
+    "question": "Scaling Law 的核心结论是什么？Chinchilla 定律说了什么？",
+    "category": "knowledge_hit",
+    "expected_route": "local",
+    "difficulty": "hard",
+    "notes": "LLM 理论题，考察幂律关系和最优训练效率"
+  },
+  {
+    "question": "GPT-4、Llama 3、DeepSeek-V3 的核心架构差异是什么？",
+    "category": "knowledge_hit",
+    "expected_route": "local",
+    "difficulty": "hard",
+    "notes": "模型对比题，考察 MHA/GQA/MLA 和 MoE 架构差异"
+  },
+  {
+    "question": "Graph RAG 和传统 RAG 有什么区别？分别适合什么场景？",
+    "category": "knowledge_hit",
+    "expected_route": "local",
+    "difficulty": "hard",
+    "notes": "RAG 进阶对比题，考察向量检索 vs 图遍历的差异"
+  },
+  {
+    "question": "如何评估 RAG 系统的质量？Ragas 框架的三个核心指标是什么？",
+    "category": "knowledge_hit",
+    "expected_route": "local",
+    "difficulty": "hard",
+    "notes": "RAG 评估题，考察 Faithfulness/Answer Relevancy/Context Recall"
+  },
+  {
+    "question": "什么是 Matryoshka Representation Learning？它解决了什么问题？",
+    "category": "knowledge_hit",
+    "expected_route": "local",
+    "difficulty": "hard",
+    "notes": "Embedding 进阶题，考察嵌套式表征学习和多维度截断"
+  },
+  {
+    "question": "Loop Engineering 循环工程的核心理念是什么？跟 Harness Engineering 有啥区别？",
+    "category": "knowledge_hit",
+    "expected_route": "local",
+    "difficulty": "hard",
+    "notes": "前沿概念题，考察从写 Prompt 到写循环的范式转变"
+  },
+  {
+    "question": "Decoder-Only 架构为什么成为 LLM 的主流选择？",
+    "category": "knowledge_hit",
+    "expected_route": "local",
+    "difficulty": "hard",
+    "notes": "架构选择题，考察生成能力+预训练效率+零样本泛化的综合优势"
+  },
+  {
+    "question": "2026 年最新的大模型排行榜是怎样的？",
+    "category": "knowledge_miss",
+    "expected_route": "online",
+    "difficulty": "easy",
+    "notes": "最新动态题，知识库有截止性，需要联网获取最新排名"
+  },
+  {
+    "question": "React 19 和 Vue 3 哪个更适合做中后台项目？",
+    "category": "knowledge_miss",
+    "expected_route": "online",
+    "difficulty": "easy",
+    "notes": "前端框架对比，完全不在知识库范围内"
+  },
+  {
+    "question": "今天比特币的价格是多少？",
+    "category": "knowledge_miss",
+    "expected_route": "online",
+    "difficulty": "easy",
+    "notes": "实时价格查询，知识库不可能包含"
+  },
+  {
+    "question": "Kubernetes 1.32 版本新增了哪些特性？",
+    "category": "knowledge_miss",
+    "expected_route": "online",
+    "difficulty": "medium",
+    "notes": "外部技术最新动态，知识库不涉及 K8s"
+  },
+  {
+    "question": "OpenAI 上周发布的新模型是什么？",
+    "category": "knowledge_miss",
+    "expected_route": "online",
+    "difficulty": "easy",
+    "notes": "时效性新闻题，需要联网搜索最新信息"
+  },
+  {
+    "question": "Python 的 asyncio 和 Go 的 goroutine 性能对比是怎样的？",
+    "category": "knowledge_miss",
+    "expected_route": "online",
+    "difficulty": "medium",
+    "notes": "编程语言对比，不在知识库覆盖范围"
+  },
+  {
+    "question": "特斯拉 2026 年 Q2 的财报数据出来了吗？",
+    "category": "knowledge_miss",
+    "expected_route": "online",
+    "difficulty": "easy",
+    "notes": "实时财经信息，知识库不包含"
+  },
+  {
+    "question": "Docker 和 Podman 在生产环境用哪个更好？",
+    "category": "knowledge_miss",
+    "expected_route": "online",
+    "difficulty": "medium",
+    "notes": "DevOps 工具对比，不在知识库范围"
+  },
+  {
+    "question": "Rust 语言 2026 年的开发者生态调查结果显示了什么趋势？",
+    "category": "knowledge_miss",
+    "expected_route": "online",
+    "difficulty": "medium",
+    "notes": "最新调查报告，知识库不可能包含"
+  },
+  {
+    "question": "AWS Lambda 最新的支持的运行时版本有哪些？",
+    "category": "knowledge_miss",
+    "expected_route": "online",
+    "difficulty": "easy",
+    "notes": "云服务具体配置信息，知识库不涉及"
+  },
+  {
+    "question": "怎么评价 Anthropic 最近被曝出的安全争议事件？",
+    "category": "knowledge_miss",
+    "expected_route": "online",
+    "difficulty": "medium",
+    "notes": "最新新闻事件，需要联网获取"
+  },
+  {
+    "question": "Next.js 16 有什么 breaking changes？",
+    "category": "knowledge_miss",
+    "expected_route": "online",
+    "difficulty": "medium",
+    "notes": "前端框架版本更新，不在知识库范围"
+  },
+  {
+    "question": "国内大模型备案注册的最新政策是什么？",
+    "category": "knowledge_miss",
+    "expected_route": "online",
+    "difficulty": "hard",
+    "notes": "政策法规类实时信息，知识库不包含"
+  },
+  {
+    "question": "GitHub Copilot 最新的模型支持情况如何？",
+    "category": "knowledge_miss",
+    "expected_route": "online",
+    "difficulty": "medium",
+    "notes": "产品最新动态，需要联网查询"
+  },
+  {
+    "question": "MySQL 9.0 和 PostgreSQL 18 在 JSON 支持方面谁更强？",
+    "category": "knowledge_miss",
+    "expected_route": "online",
+    "difficulty": "hard",
+    "notes": "数据库版本对比，知识库不涉及具体版本特性"
+  },
+  {
+    "question": "最近爆火的那个 AI 视频生成工具叫什么来着？效果怎么样？",
+    "category": "knowledge_miss",
+    "expected_route": "online",
+    "difficulty": "easy",
+    "notes": "热门话题查询，知识库不包含实时热点"
+  },
+  {
+    "question": "Spring Boot 4.0 什么时候发布？有哪些新特性？",
+    "category": "knowledge_miss",
+    "expected_route": "online",
+    "difficulty": "medium",
+    "notes": "Java 框架版本信息，不在知识库范围"
+  },
+  {
+    "question": "HuggingFace 最新的模型下载量排行前 10 是哪些？",
+    "category": "knowledge_miss",
+    "expected_route": "online",
+    "difficulty": "medium",
+    "notes": "实时排行榜数据，知识库无法提供"
+  },
+  {
+    "question": "WebAssembly 在 2026 年的浏览器支持率是多少？",
+    "category": "knowledge_miss",
+    "expected_route": "online",
+    "difficulty": "hard",
+    "notes": "最新统计数据，需要联网获取"
+  },
+  {
+    "question": "为什么 Agent 比传统 Chain 更适合处理复杂的多步任务？",
+    "category": "multi_hop",
+    "expected_route": "decomposition",
+    "difficulty": "medium",
+    "notes": "需要综合 Agent 的规划能力、工具调用、记忆机制和 Chain 的线性局限进行推理"
+  },
+  {
+    "question": "RAG 和微调各自的适用场景是什么？如果我的知识库每天都在更新，应该怎么选？",
+    "category": "multi_hop",
+    "expected_route": "decomposition",
+    "difficulty": "medium",
+    "notes": "需要综合 RAG 和微调的知识更新成本、适用场景进行对比推理"
+  },
+  {
+    "question": "从 Transformer 到 GPT-4 再到 Agent，AI 技术栈是怎么一步步演进的？",
+    "category": "multi_hop",
+    "expected_route": "decomposition",
+    "difficulty": "hard",
+    "notes": "需要串联 Transformer 架构→LLM 训练→Agent 系统三个知识模块进行因果推断"
+  },
+  {
+    "question": "如果我的 RAG 系统检索准确率很高但用户还是不满意，可能是什么原因？怎么排查？",
+    "category": "multi_hop",
+    "expected_route": "decomposition",
+    "difficulty": "hard",
+    "notes": "需要综合 RAG 检索质量、Prompt 约束、LLM 生成能力、幻觉等多个维度推理"
+  },
+  {
+    "question": "LoRA 微调后的模型能不能直接用在 RAG 系统里？两者组合有什么需要注意的？",
+    "category": "multi_hop",
+    "expected_route": "decomposition",
+    "difficulty": "hard",
+    "notes": "需要综合微调和 RAG 两个知识模块，推理组合使用的注意事项"
+  },
+  {
+    "question": "为什么向量数据库的检索质量直接决定了 RAG 系统的上限？",
+    "category": "multi_hop",
+    "expected_route": "decomposition",
+    "difficulty": "medium",
+    "notes": "需要关联向量数据库检索原理和 RAG 工作流程进行因果推断"
+  },
+  {
+    "question": "Function Calling 和 ReAct 都能让模型调用工具，它们的设计哲学有什么不同？最佳实践是什么？",
+    "category": "multi_hop",
+    "expected_route": "decomposition",
+    "difficulty": "hard",
+    "notes": "需要综合 Function Calling 和 ReAct 两个模块进行对比推理"
+  },
+  {
+    "question": "MCP 协议的出现会改变 Function Calling 的使用方式吗？两者怎么协同？",
+    "category": "multi_hop",
+    "expected_route": "decomposition",
+    "difficulty": "hard",
+    "notes": "需要综合 MCP 和 Function Calling 的定位差异推理协同关系"
+  },
+  {
+    "question": "Agent 的循环失控问题是怎么产生的？Harness Engineering 提供了哪些解决思路？",
+    "category": "multi_hop",
+    "expected_route": "decomposition",
+    "difficulty": "hard",
+    "notes": "需要综合 Agent 缺陷和 Harness Engineering 约束机制进行关联分析"
+  },
+  {
+    "question": "为什么说 LangGraph 的图模型天然消解了 Agent 和 Workflow 的二元对立？",
+    "category": "multi_hop",
+    "expected_route": "decomposition",
+    "difficulty": "hard",
+    "notes": "需要综合 LangGraph 架构、Agent 和 Workflow 定义进行推理"
+  },
+  {
+    "question": "Embedding 模型的选择对 RAG 系统有什么影响？怎么选合适的 Embedding 模型？",
+    "category": "multi_hop",
+    "expected_route": "decomposition",
+    "difficulty": "medium",
+    "notes": "需要关联 Embedding 技术和 RAG 检索质量进行推理"
+  },
+  {
+    "question": "模型幻觉在 RAG 系统中是怎么产生的？RAG 能完全消除幻觉吗？",
+    "category": "multi_hop",
+    "expected_route": "decomposition",
+    "difficulty": "medium",
+    "notes": "需要综合幻觉成因和 RAG 缓解机制进行推理"
+  },
+  {
+    "question": "Agent 记忆机制中的长期记忆为什么要用向量数据库来存储？",
+    "category": "multi_hop",
+    "expected_route": "decomposition",
+    "difficulty": "medium",
+    "notes": "需要关联 Agent 记忆机制和向量数据库的语义检索能力进行推理"
+  },
+  {
+    "question": "Prompt Engineering、Context Engineering、Harness Engineering 三者的关系是什么？为什么说它们是递进的？",
+    "category": "multi_hop",
+    "expected_route": "decomposition",
+    "difficulty": "hard",
+    "notes": "需要综合三个工程范式的时间尺度和解决的问题进行关联分析"
+  },
+  {
+    "question": "Loop Engineering 是怎么从 Harness Engineering 演化出来的？解决了什么遗留问题？",
+    "category": "multi_hop",
+    "expected_route": "decomposition",
+    "difficulty": "hard",
+    "notes": "需要理解 AI 工程范式演进的因果关系"
+  },
+  {
+    "question": "为什么 Anthropic 建议优先用 Workflow 而不是 Agent？什么情况下才应该引入 Agent？",
+    "category": "multi_hop",
+    "expected_route": "decomposition",
+    "difficulty": "medium",
+    "notes": "需要综合 Workflow 和 Agent 的优缺点进行权衡推理"
+  },
+  {
+    "question": "如果要从零搭建一个企业级知识库问答系统，需要用到知识库里的哪些技术？怎么组合？",
+    "category": "multi_hop",
+    "expected_route": "decomposition",
+    "difficulty": "hard",
+    "notes": "需要综合 RAG、向量数据库、Embedding、Prompt Engineering、LLM 等多个模块进行系统设计推理"
+  },
+  {
+    "question": "为什么 DPO 的流行不是因为方法更好而是因为工程更简单？这说明了什么规律？",
+    "category": "multi_hop",
+    "expected_route": "decomposition",
+    "difficulty": "hard",
+    "notes": "需要综合 DPO/RLHF 的工程复杂度对比和 AI 工程化规律进行推理"
+  },
+  {
+    "question": "长上下文窗口越来越大，RAG 还有存在的必要吗？",
+    "category": "multi_hop",
+    "expected_route": "decomposition",
+    "difficulty": "medium",
+    "notes": "需要综合 RAG 优缺点和长上下文模型的特点进行对比推理"
+  },
+  {
+    "question": "为什么微调不是让模型变聪明而是让模型变听话？这个认知对实际使用有什么影响？",
+    "category": "multi_hop",
+    "expected_route": "decomposition",
+    "difficulty": "hard",
+    "notes": "需要综合微调本质和预训练能力上限的概念进行推理"
+  },
+  {
+    "question": "根据 Self-RAG 论文的实验数据，Self-RAG 在 TruthfulQA 上的准确率比标准 RAG 高多少？",
+    "category": "hallucination_prone",
+    "expected_route": "local",
+    "difficulty": "hard",
+    "notes": "诱导模型编造具体数字，知识库只提到 Self-RAG 概念但没有实验数据"
+  },
+  {
+    "question": "LangGraph 3.0 新增了哪些特性？官方迁移指南说了什么？",
+    "category": "hallucination_prone",
+    "expected_route": "local",
+    "difficulty": "medium",
+    "notes": "知识库没有 LangGraph 版本信息，诱导模型编造版本特性"
+  },
+  {
+    "question": "根据 Anthropic 2025 年的内部测试数据，Claude 3.5 在 RAG 场景下的幻觉率降到了多少？",
+    "category": "hallucination_prone",
+    "expected_route": "local",
+    "difficulty": "hard",
+    "notes": "诱导模型编造不存在的内部数据，知识库无此信息"
+  },
+  {
+    "question": "LoRA 论文中 r=8 实验的具体准确率数值是多少？在哪些 benchmark 上测试的？",
+    "category": "hallucination_prone",
+    "expected_route": "local",
+    "difficulty": "hard",
+    "notes": "知识库提到 r=8 但没给具体 benchmark 数值，诱导编造精确数据"
+  },
+  {
+    "question": "OpenAI 2025 年发布的 GPT-5 用了什么新架构？参数量是多少？",
+    "category": "hallucination_prone",
+    "expected_route": "local",
+    "difficulty": "medium",
+    "notes": "知识库中模型对比截止到 2024-2025，不包含 GPT-5 信息"
+  },
+  {
+    "question": "Milvus 2.5 版本的官方性能测试报告显示吞吐量提升了多少？",
+    "category": "hallucination_prone",
+    "expected_route": "local",
+    "difficulty": "hard",
+    "notes": "知识库不包含 Milvus 具体版本的性能数据"
+  },
+  {
+    "question": "RAG 原始论文（Lewis et al., 2020）中报告的 Top-5 检索准确率是多少？",
+    "category": "hallucination_prone",
+    "expected_route": "local",
+    "difficulty": "hard",
+    "notes": "知识库不包含 RAG 原始论文的具体实验数值"
+  },
+  {
+    "question": "BGE-M3 模型在 MTEB 排行榜上的具体排名和分数是多少？",
+    "category": "hallucination_prone",
+    "expected_route": "local",
+    "difficulty": "medium",
+    "notes": "知识库提到 BGE-M3 但没有具体排名分数"
+  },
+  {
+    "question": "Dify 2026 年最新版本的用户量突破了多少？官方路线图有什么新功能？",
+    "category": "hallucination_prone",
+    "expected_route": "local",
+    "difficulty": "medium",
+    "notes": "诱导编造产品运营数据和未发布的功能规划"
+  },
+  {
+    "question": "根据 Google 内部测试，Gemini 2.0 在 Agent 任务上的成功率比 GPT-4o 高多少个百分点？",
+    "category": "hallucination_prone",
+    "expected_route": "local",
+    "difficulty": "hard",
+    "notes": "诱导编造不存在的厂商内部对比数据"
+  },
+  {
+    "question": "那个东西怎么用啊？",
+    "category": "fuzzy",
+    "expected_route": "local",
+    "difficulty": "easy",
+    "notes": "指代不明，不知道'那个东西'是什么"
+  },
+  {
+    "question": "它和之前那个比哪个好？",
+    "category": "fuzzy",
+    "expected_route": "local",
+    "difficulty": "easy",
+    "notes": "代词指代不明，不知道'它'和'之前那个'分别是什么"
+  },
+  {
+    "question": "RAG 怎么用？效果不好咋整？",
+    "category": "fuzzy",
+    "expected_route": "local",
+    "difficulty": "medium",
+    "notes": "问题范围太宽泛，'效果不好'没有说明具体是什么效果、什么场景"
+  },
+  {
+    "question": "帮我看下上次说的那个方案",
+    "category": "fuzzy",
+    "expected_route": "local",
+    "difficulty": "easy",
+    "notes": "缺少上下文，不知道'上次说的'和'那个方案'指什么"
+  },
+  {
+    "question": "transformer的attation机制是啥",
+    "category": "fuzzy",
+    "expected_route": "local",
+    "difficulty": "easy",
+    "notes": "拼写错误（attation → attention），但意图可推断"
+  },
+  {
+    "question": "向量数据库是不是就是redis那种？",
+    "category": "fuzzy",
+    "expected_route": "local",
+    "difficulty": "medium",
+    "notes": "概念混淆，用户可能不清楚向量数据库和缓存数据库的区别"
+  },
+  {
+    "question": "agent怎么搞",
+    "category": "fuzzy",
+    "expected_route": "local",
+    "difficulty": "easy",
+    "notes": "极度口语化且模糊，不知道是要搭建 Agent、理解概念还是选型"
+  },
+  {
+    "question": "微调贵不贵？效果行不行？",
+    "category": "fuzzy",
+    "expected_route": "local",
+    "difficulty": "medium",
+    "notes": "口语化表达，'贵不贵'和'行不行'缺少具体场景和约束条件"
+  },
+  {
+    "question": "有没有什么办法能让它不瞎编？",
+    "category": "fuzzy",
+    "expected_route": "local",
+    "difficulty": "medium",
+    "notes": "'它'指代不明（可能是 LLM），'瞎编'是幻觉的口语说法"
+  },
+  {
+    "question": "prompt 写得烂怎么办？就是那种写了一大段但模型不听的那种",
+    "category": "fuzzy",
+    "expected_route": "local",
+    "difficulty": "medium",
+    "notes": "口语化描述问题，没有说明具体是什么任务、什么模型、不听什么指令"
+  }
+]

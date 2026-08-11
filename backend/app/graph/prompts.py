@@ -44,37 +44,72 @@ DECOMPOSE_PROMPT = """你是一个问题分析专家。判断以下问题的类�
    - 否 → is_chitchat=false
 2. needs_decomposition：是否需要分解为子问题逐步推理？
    - 以下情况 needs_decomposition=true：
-     * 问题要求比较两个或多个具体事物的"区别/异同/差异"（触发词：对比、比较、区别、异同、差异、vs；A、B 为具体事物。无需同时出现"对比"与"区别"）
-     * 问题包含多个并列子问题，且明确要求分别独立回答每个概念（触发词：分别、各自、各是什么；如"A、B、C 分别是什么？"）。仅出现多个概念名词不构成并列子问题，必须有"分别/各自"等显式独立回答要求
+     * 问题明确要求"分别独立详细介绍"多个来自不同技术领域的概念（如"请分别介绍 RAG、微调和向量数据库"——三个概念分属不同领域，需分别检索不同文档）
+       判定关键：多个对象必须是不同领域的独立概念，且需要分别检索不同文档才能回答
+       - 同领域变体/同类概念不分解（见 false 分支）
+       - 从属结构不分解（"X 的 A、B" → A/B 是 X 的组成部分）
      * 问题要求"分步骤说明"或"流程是什么"
    - 以下情况 needs_decomposition=false（即使问题看似复杂）：
      * 单一概念的定义/解释（如"什么是 RAG"、"什么是 Agent"）
      * 单一事物的原理/工作流程（如"RAG 的工作原理"）
      * 优缺点/特征列表（如"RAG 的优点"）
-     * 单一关系/联系/关联说明（如"A 和 B 的关系/联系/关联"）——注意："区别/异同/差异"不归此类，见 true 分支
-     * 多个概念之间的"关系/联系/关联"说明（如"A、B、C 之间有什么关联"、"RAG、微调和幻觉有什么关联"）——单一综合主题，不分解，即使概念数 ≥3。仅当同时含"区别/异同/差异"触发词时才归 true 分支
+     * "X 和 Y 的区别/异同/差异"类问题——单一对比主题，检索相关文档后 LLM 直接对比即可
+       - 包括："RAG 和 Fine-tuning 的区别"、"ReAct 跟 CoT 的区别"、"Self-RAG 和 CRAG 的区别"、"向量数据库和传统数据库的区别"、"Graph RAG 和传统 RAG 的区别"
+       - 原因：这类问题检索一篇相关文档通常包含对比说明，无需分别检索
+     * "X 和 Y 分别是什么/各自..."其中 X、Y 是同领域概念/变体——单一主题
+       - 包括："Self-RAG 和 CRAG 的核心思想分别是什么"（同为 RAG 变体）、"LangChain 和 LangGraph 各自解决什么问题"（同生态）、"SFT 和 RLHF 分别解决什么问题"（同为训练阶段）
+     * 多对象选型/对比（如"Milvus、Qdrant、Chroma 怎么选"、"GPT-4、Llama 3、DeepSeek-V3 架构差异"）——单一选型/对比主题
+     * 单一关系/联系/关联说明（如"A 和 B 的关系/联系/关联"）
+     * 多个概念之间的"关系/联系/关联"说明（如"A、B、C 之间有什么关联"）——单一综合主题，不分解
+     * 同一概念的多个组成部分/参数/阶段的"分别/各自"说明（如"LoRA 的 r 和 alpha 分别代表什么"）——有"的"字从属结构
+     * 同一主题的并列多问句（如"X 是什么？有什么用？"、"X 的结论是什么？Y 说了什么？"其中 X、Y 同主题）——围绕同一主题的多角度问答，不分解
    - 闲聊类（is_chitchat=true）一律 needs_decomposition=false
 
-判定原则：宁可不分解。只有问题明显需要分步推理或对比多个对象时才分解。
-优先级：当"区别/异同/差异"与"关系/联系/关联"同时出现或语义重叠时，按"区别"类处理（true）。
+判定原则：宁可不分解。只有问题明显需要分步推理或分别检索不同文档时才分解。
 
 边界 case 示例：
-- "什么是 RAG 和 Agent" → needs_decomposition=true（两个独立概念，需分别解释）
+- "什么是 RAG 和 Agent" → needs_decomposition=true（两个不同领域的独立概念，需分别检索不同文档）
   reasoning_steps=[{{"sub_query": "什么是 RAG"}}, {{"sub_query": "什么是 Agent"}}]
 - "RAG 和 Agent 的关系" → needs_decomposition=false（关系说明，单一主题）
   reasoning_steps=[]
-- "对比 RAG 和 Fine-tuning 的区别" → needs_decomposition=true（明确对比两个对象）
-  reasoning_steps=[{{"sub_query": "RAG 是什么"}}, {{"sub_query": "Fine-tuning 是什么"}}, {{"sub_query": "两者的区别"}}]
-- "RAG 和 Agent 的区别" → needs_decomposition=true（区别类，无需"对比"关键字）
-  reasoning_steps=[{{"sub_query": "RAG 是什么"}}, {{"sub_query": "Agent 是什么"}}, {{"sub_query": "两者的区别"}}]
-- "RAG 和 Agent 的区别和联系" → needs_decomposition=true（含区别，归分解；联系作为综合步骤）
-  reasoning_steps=[{{"sub_query": "RAG 是什么"}}, {{"sub_query": "Agent 是什么"}}, {{"sub_query": "两者的区别与联系"}}]
+- "RAG 和 Agent 的区别" → needs_decomposition=false（区别类，单一对比主题，检索后 LLM 直接对比）
+  reasoning_steps=[]
+- "对比 RAG 和 Fine-tuning 的区别" → needs_decomposition=false（同属微调/RAG 领域，单一对比主题）
+  reasoning_steps=[]
+- "RAG 和 Agent 的区别和联系" → needs_decomposition=false（区别+联系，单一综合主题）
+  reasoning_steps=[]
 - "RAG 的优缺点" → needs_decomposition=false（优缺点列表，单一主题）
   reasoning_steps=[]
-- "RAG和模型微调和幻觉有什么关联" → needs_decomposition=false（多概念关联，单一综合主题，不分解）
+- "RAG和模型微调和幻觉有什么关联" → needs_decomposition=false（多概念关联，单一综合主题）
   reasoning_steps=[]
-- "RAG、模型微调、幻觉分别是什么" → needs_decomposition=true（显式"分别"，并列子问题）
+- "RAG、模型微调、幻觉分别是什么" → needs_decomposition=true（三个不同领域的独立概念，需分别检索）
   reasoning_steps=[{{"sub_query": "RAG 是什么"}}, {{"sub_query": "模型微调是什么"}}, {{"sub_query": "幻觉是什么"}}]
+- "LoRA 的 r 和 alpha 分别代表什么" → needs_decomposition=false（r/alpha 是 LoRA 的参数，从属结构）
+  reasoning_steps=[]
+- "Agent 的四大模块各自负责什么" → needs_decomposition=false（四大模块是 Agent 的组成部分）
+  reasoning_steps=[]
+- "SFT 和 RLHF 分别解决什么问题" → needs_decomposition=false（同为 LLM 训练阶段，同领域）
+  reasoning_steps=[]
+- "Self-RAG 和 CRAG 的核心思想分别是什么" → needs_decomposition=false（同为 RAG 变体，同领域）
+  reasoning_steps=[]
+- "LangChain 和 LangGraph 各自解决什么问题" → needs_decomposition=false（同生态，同领域）
+  reasoning_steps=[]
+- "ReAct 跟 CoT 有啥本质区别" → needs_decomposition=false（同属推理框架，单一对比主题）
+  reasoning_steps=[]
+- "向量数据库和传统数据库有啥本质区别" → needs_decomposition=false（单一对比主题）
+  reasoning_steps=[]
+- "Milvus、Qdrant、Chroma 怎么选" → needs_decomposition=false（多对象选型，单一主题）
+  reasoning_steps=[]
+- "GPT-4、Llama 3、DeepSeek-V3 的核心架构差异" → needs_decomposition=false（多对象对比，单一主题）
+  reasoning_steps=[]
+- "MCP 的三大能力原语 Tools、Resources、Prompts 分别由谁控制" → needs_decomposition=false（从属结构）
+  reasoning_steps=[]
+- "LLM 的三阶段训练流程是什么？每个阶段的产出是什么" → needs_decomposition=false（单一流程多阶段，同主题多问句）
+  reasoning_steps=[]
+- "Scaling Law 的核心结论是什么？Chinchilla 定律说了什么" → needs_decomposition=false（同主题多问句）
+  reasoning_steps=[]
+- "LangChain 和 LangGraph 各自解决什么问题？两者是什么关系" → needs_decomposition=false（同生态+关系，单一主题）
+  reasoning_steps=[]
 
 请返回 JSON：
 {{"is_chitchat": true/false, "needs_decomposition": true/false, "reasoning_steps": [{{"sub_query": "子问题1"}}, ...]}}
@@ -203,6 +238,11 @@ MULTI_STEP_PROMPT = """你是一个多步推理专家。请基于提供的知识
 3. 最后给出综合答案
 4. 在综合答案中用 [来源：文档名] 的格式标注引用来源（文档名见知识库内容中的【文档：XXX】标记）
 5. 回答必须直接以"## 推理过程"或"第一步"开头，禁止以任何形式复述、重复用户问题
+6. 严格约束（防幻觉）：
+   - 若知识库内容能支持子问题的回答（即使是部分支持）→ 正常基于依据回答，标注引用
+   - 若知识库内容完全无法支持某个子问题 → 该子问题明确说"知识库中未提及此内容"，禁止编造
+   - 若所有子问题均完全无知识库依据 → 综合答案明确说"知识库无法回答此问题"
+   - 关键：有部分依据时正常答，只有完全无依据时才承认
 
 子问题：
 {sub_queries}

@@ -280,10 +280,10 @@ Agent/
 │   │   ├── main.py             # FastAPI 入口（lifespan，Reranker 预热）
 │   │   └── extensions.py       # 扩展（slowapi Limiter 单例）
 │   ├── data/                   # 数据目录
-│   │   ├── raw/                # 原始 Obsidian 笔记（{{条数}} 篇）
+│   │   ├── raw/                # 原始 Obsidian 笔记（20 篇）
 │   │   └── processed/          # 处理后笔记（去重清理）
 │   ├── eval/                   # 评估体系
-│   │   ├── dataset.json        # 评估集（{{条数}} 条，5 类问题）
+│   │   ├── dataset.json        # 评估集（99 条，5 类问题）
 │   │   ├── reports/            # 评估报告（JSON）
 │   │   └── run_eval.py         # 评估脚本
 │   ├── rag/                    # RAG 层
@@ -314,17 +314,17 @@ Agent/
 
 ### 评估集规模
 
-{{条数}} 条测试问题，5 类问题分布：
+99 条测试问题，5 类问题分布：
 
 | 类别 | 数量 | 说明 |
 |------|------|------|
-| `knowledge_hit` | {{数量}} | 知识库已有内容（如"什么是 RAG"） |
-| `knowledge_missing` | {{数量}} | 知识库缺失，需联网（如"2026 最新框架"） |
-| `multi_hop` | {{数量}} | 多步推理（如"A 和 B 的区别"） |
-| `routing_test` | {{数量}} | 路由判断（闲聊、关联问题） |
-| `hallucination_test` | {{数量}} | 幻觉测试（知识库未提及的细节） |
+| `knowledge_hit` | 40 | 知识库已有内容（如"什么是 RAG"） |
+| `knowledge_missing` | 19 | 知识库缺失，需联网（如"2026 最新框架"） |
+| `multi_hop` | 20 | 多步推理（如"A 和 B 的区别"） |
+| `routing_test` | 10 | 路由判断（闲聊、关联问题） |
+| `hallucination_test` | 10 | 幻觉测试（知识库未提及的细节） |
 
-难度分布：easy {{数量}} 条，medium {{数量}} 条，hard {{数量}} 条。
+难度分布：easy 27 条，medium 42 条，hard 30 条。
 
 ### 评估指标定义
 
@@ -339,18 +339,29 @@ Agent/
 
 | 指标 | 第 1 轮（基线） | 第 2 轮（优化后） |
 |------|----------------|------------------|
-| route_accuracy | {{值}} | {{值}} |
-| answer_relevance | {{值}} | {{值}} |
-| source_correctness | {{值}} | {{值}} |
-| retrieval_success_rate | {{值}} | {{值}} |
-| hallucination_count | {{值}} | {{值}} |
-| 平均延迟 (ms) | {{值}} | {{值}} |
+| route_accuracy | 39.4% (39/99) | 93.9% (93/99) |
+| answer_relevance | 100.0% (60/60) | 100.0% (60/60) |
+| source_correctness | 88.1% (59/67) | 85.9% (55/64) |
+| retrieval_success_rate | 100.0% (25/25) | 100.0% (65/65) |
+| hallucination_count | 3 | 0 |
+| 平均延迟 (ms) | 37,416 | 18,197 |
 
-**第 1 轮时间**：{{日期}}
+**第 1 轮时间**：2026-08-10
 
-**第 2 轮时间**：{{日期}}
+**第 2 轮时间**：2026-08-11
 
-**关键改进**：{{描述优化内容和效果}}
+**关键改进**：
+
+第 1 轮基线暴露出路由策略是最大瓶颈：`knowledge_hit` 类 40 题中 28 题被误判为 `decomposition`，`hallucination_test` 10 题全部路由失败，`knowledge_missing` 也有约 1/3 未正确走 `online`。第 2 轮针对以上问题做了以下优化并验证：
+
+1. **收紧 `decompose_question` 判定**：降低对单点知识问答和简单对比问题的分解触发阈值，让 `knowledge_hit` 类优先走 `local`。该类路由准确率从 30.0% 提升至 97.5%。
+2. **增强 `judge_relevance` 对幻觉题和知识缺失题的识别**：加入对"细节不存在于知识库"和"知识库未覆盖"的显式判断，`hallucination_test` 路由准确率从 0% 提升至 100%，`knowledge_missing` 从 68.4% 提升至 100%。
+3. **优化路由策略与节点调用**：减少不必要的 DeepSeek API 调用路径，平均延迟从 37,416 ms 降至 18,197 ms（P50 从 22,445 ms 降至 13,588 ms），最大延迟从 186,335 ms 降至 97,679 ms，端到端响应明显变快。
+
+**仍存在的短板**：
+
+- `routing_test` 路由准确率 70.0%，6 个失败案例中有 4 个是闲聊/关联问题被误判为 `online`（q090、q091、q093）或多跳问题被误判为 `online`（q060、q063），说明对弱语义/无检索需求 query 的识别仍需细化。
+- `source_correctness` 从 88.1% 微降至 85.9%，主要受 `multi_hop` 类影响（77.8%），多跳答案的引用标注与预期文档匹配还有优化空间。
 
 ---
 
