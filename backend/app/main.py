@@ -152,4 +152,8 @@ from app.api import chat  # noqa: E402
 
 app.include_router(chat.router)
 app.include_router(index_api.router)
+
+from app.api import graph as graph_api  # noqa: E402
+
+app.include_router(graph_api.router)
 register_error_handlers(app)

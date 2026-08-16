@@ -43,6 +43,8 @@ class ConversationDetail(ConversationResponse):
 class IndexRebuildResponse(BaseModel):
     success: bool
     doc_count: int
+    # 知识图谱构建结果（构建失败不阻塞索引，仅置 False，前端可提示重建）
+    graph_built: bool = True
 
 
 class HealthResponse(BaseModel):
