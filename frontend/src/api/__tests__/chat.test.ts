@@ -15,7 +15,7 @@ function makeStream(chunks: string[]): ReadableStream<Uint8Array> {
 describe('streamChat SSE parsing', () => {
   it('parses stage / token / done events', async () => {
     const sseData = [
-      'data: {"type":"stage","data":"正在检索..."}',
+      'data: {"type":"stage","data":{"node":"rag_retrieve","label":"正在检索知识库..."}}',
       '',
       'data: {"type":"token","data":"你好"}',
       '',
@@ -38,7 +38,7 @@ describe('streamChat SSE parsing', () => {
     )
 
     expect(events).toEqual([
-      { type: 'stage', data: '正在检索...' },
+      { type: 'stage', data: { node: 'rag_retrieve', label: '正在检索知识库...' } },
       { type: 'token', data: '你好' },
       { type: 'done' },
     ])
@@ -165,7 +165,7 @@ describe('streamChat SSE parsing', () => {
     // 若前端用 indexOf('\n\n') 会被 \r 阻断，所有事件堆在 buffer 里。
     const sseData = [
       'event: message',
-      'data: {"type":"stage","data":"正在检索..."}',
+      'data: {"type":"stage","data":{"node":"rag_retrieve","label":"正在检索知识库..."}}',
       '',
       'event: message',
       'data: {"type":"token","data":"你好"}',
@@ -190,7 +190,7 @@ describe('streamChat SSE parsing', () => {
     )
 
     expect(events).toEqual([
-      { type: 'stage', data: '正在检索...' },
+      { type: 'stage', data: { node: 'rag_retrieve', label: '正在检索知识库...' } },
       { type: 'token', data: '你好' },
       { type: 'done' },
     ])
@@ -220,5 +220,69 @@ describe('streamChat SSE parsing', () => {
 
     expect(tokens).toEqual(['你好'])
     expect(doneCount).toBe(1)
+  })
+
+  it('dispatches node_end and reasoning events', async () => {
+    const sseData = [
+      'data: {"type":"node_end","data":{"node":"rewrite_query","label":"正在理解问题...","duration_ms":120,"output":{"rewritten_query":"什么是 RAG"}}}',
+      '',
+      'data: {"type":"reasoning","data":"用户在问 RAG"}',
+      '',
+      'data: {"type":"done"}',
+      '',
+    ].join('\n')
+
+    ;(globalThis.fetch as any) = vi.fn().mockResolvedValue({ ok: true, body: makeStream([sseData]) })
+
+    const nodeEnds: unknown[] = []
+    const reasonings: string[] = []
+    await streamChat(
+      { conversation_id: '1', message: 'x' },
+      {
+        onStage: () => {},
+        onToken: () => {},
+        onNodeEnd: (p) => nodeEnds.push(p),
+        onReasoning: (t) => reasonings.push(t),
+        onMeta: () => {},
+        onError: () => {},
+        onDone: () => {},
+      }
+    )
+
+    expect(nodeEnds).toEqual([
+      {
+        node: 'rewrite_query',
+        label: '正在理解问题...',
+        duration_ms: 120,
+        output: { rewritten_query: '什么是 RAG' },
+      },
+    ])
+    expect(reasonings).toEqual(['用户在问 RAG'])
+  })
+
+  it('tolerates missing optional onNodeEnd/onReasoning callbacks', async () => {
+    const sseData = [
+      'data: {"type":"node_end","data":{"node":"x","label":"y","duration_ms":1,"output":{}}}',
+      '',
+      'data: {"type":"reasoning","data":"z"}',
+      '',
+      'data: {"type":"done"}',
+      '',
+    ].join('\n')
+
+    ;(globalThis.fetch as any) = vi.fn().mockResolvedValue({ ok: true, body: makeStream([sseData]) })
+
+    let done = false
+    await streamChat(
+      { conversation_id: '1', message: 'x' },
+      {
+        onStage: () => {},
+        onToken: () => {},
+        onMeta: () => {},
+        onError: () => {},
+        onDone: () => { done = true },
+      }
+    )
+    expect(done).toBe(true) // 可选回调缺失时不抛错
   })
 })

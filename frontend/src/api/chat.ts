@@ -1,7 +1,7 @@
 // frontend/src/api/chat.ts
 // SSE 流式客户端：解析 sse-starlette 推送的事件，分发到回调。
 // 事件格式：data: {"type":"stage|token|meta|error|done","data":...}\n\n
-import type { ChatRequest, StreamCallbacks, ChatMeta } from '@/types'
+import type { ChatRequest, StreamCallbacks, ChatMeta, StagePayload, NodeEndPayload } from '@/types'
 
 // 无数据超时：连续 60s 收不到任何 chunk 视为连接卡死，主动中止。
 // DeepSeek 偶发 StreamChunkTimeoutError（120s），这里更激进些提前止损。
@@ -104,10 +104,16 @@ function dispatchEvent(rawData: string, cb: StreamCallbacks): void {
   }
   switch (parsed.type) {
     case 'stage':
-      cb.onStage(parsed.data as string)
+      cb.onStage(parsed.data as StagePayload)
       break
     case 'token':
       cb.onToken(parsed.data as string)
+      break
+    case 'reasoning':
+      cb.onReasoning?.(parsed.data as string)
+      break
+    case 'node_end':
+      cb.onNodeEnd?.(parsed.data as NodeEndPayload)
       break
     case 'meta':
       cb.onMeta(parsed.data as ChatMeta)

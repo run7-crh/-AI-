@@ -35,6 +35,10 @@ export interface Message {
   // 前端运行时状态（不持久化）
   isStreaming?: boolean
   currentStage?: string
+  // 思考过程可视化（不持久化，仅实时流）
+  trace?: TraceNode[]
+  traceStartedAt?: number
+  traceDurationMs?: number
 }
 
 export interface ConversationDetail extends Conversation {
@@ -84,9 +88,35 @@ export interface FeedbackStats {
   }
 }
 
+// 思考过程可视化：trace 节点与 SSE payload
+export type TraceNodeStatus = 'running' | 'done' | 'error'
+
+export interface TraceNode {
+  node: string
+  label: string
+  status: TraceNodeStatus
+  durationMs?: number
+  output?: Record<string, unknown>
+  reasoning?: string
+}
+
+export interface StagePayload {
+  node: string
+  label: string
+}
+
+export interface NodeEndPayload {
+  node: string
+  label: string
+  duration_ms: number
+  output: Record<string, unknown>
+}
+
 export interface StreamCallbacks {
-  onStage: (stage: string) => void
+  onStage: (stage: StagePayload) => void
   onToken: (token: string) => void
+  onReasoning?: (text: string) => void
+  onNodeEnd?: (payload: NodeEndPayload) => void
   onMeta: (meta: ChatMeta) => void
   onError: (message: string) => void
   onDone: () => void
