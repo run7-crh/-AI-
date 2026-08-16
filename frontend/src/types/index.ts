@@ -121,3 +121,29 @@ export interface StreamCallbacks {
   onError: (message: string) => void
   onDone: () => void
 }
+
+// 知识图谱（GET /api/graph）
+export interface GraphNode {
+  id: string
+  title: string
+  summary: string
+  category: string
+  tags: string[]
+  file: string
+  degree: number
+  aliases?: string[]
+}
+
+export interface GraphEdge {
+  source: string
+  target: string
+  type: string
+  via: 'rule' | 'llm'
+  description?: string
+}
+
+export interface GraphData {
+  built_at: string
+  nodes: GraphNode[]
+  edges: GraphEdge[]
+}
