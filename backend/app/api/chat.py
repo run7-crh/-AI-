@@ -16,6 +16,11 @@ from app.api.errors import ERROR_MESSAGES
 from app.main import get_store, get_query_log_store
 from app.config import settings
 from app.extensions import limiter
+from app.api.trace import (
+    extract_reasoning_content,
+    extract_trace_output,
+    stage_label,
+)
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 logger = logging.getLogger(__name__)
@@ -51,23 +56,6 @@ def _infer_models_used(route_path: str) -> dict:
     }
 
 
-STAGE_LABELS = {
-    "rewrite_query": "正在理解问题...",
-    "decompose_question": "正在分析问题类型...",
-    "chitchat_node": "正在回应...",
-    "judge_relevance": "正在判断问题类型...",
-    "rag_retrieve": "正在检索知识库...",
-    "rag_quality_eval": "正在评估检索质量...",
-    "query_corrector": "正在优化检索词...",
-    "web_search": "正在联网搜索...",
-    "generate_local": "正在生成回答...",
-    "generate_online": "正在生成回答...",
-    "multi_step_reason": "正在逐步推理...",
-    "combined_quality_check": "正在评估答案质量...",
-    "quality_fail": "正在生成提示...",
-}
-
-
 @router.post("")
 @limiter.limit("10/minute")
 async def chat_stream(
@@ -101,6 +89,7 @@ async def chat_stream(
     async def event_generator():
         final_state = None
         error_msg = None  # 异常时填充，finally 落库用
+        node_start_times: dict[str, float] = {}  # 节点执行开始时间（计算 duration_ms）
         try:
             # P2-5: 通过 config.metadata 传递 conversation_id，
             # 让 call_llm 等下游节点能在日志中关联会话
@@ -112,10 +101,20 @@ async def chat_stream(
             ):
                 if event["event"] == "on_chain_start":
                     node_name = event["name"]
-                    stage_text = STAGE_LABELS.get(node_name, f"执行: {node_name}")
+                    if node_name == "LangGraph":
+                        continue  # 总图入口不发 stage
+                    node_start_times[node_name] = time.time()
                     yield {
                         "event": "message",
-                        "data": json.dumps({"type": "stage", "data": stage_text}),
+                        "data": json.dumps(
+                            {
+                                "type": "stage",
+                                "data": {
+                                    "node": node_name,
+                                    "label": stage_label(node_name),
+                                },
+                            }
+                        ),
                     }
                 elif event["event"] in ("on_chat_model_stream", "on_llm_stream"):
                     # on_chat_model_stream: ChatOpenAI 等 BaseChatModel 的流式事件
@@ -133,8 +132,40 @@ async def chat_stream(
                             "event": "message",
                             "data": json.dumps({"type": "token", "data": content}),
                         }
-                elif event["event"] == "on_chain_end" and event["name"] == "LangGraph":
-                    final_state = event["data"]["output"]
+                    # deepseek-reasoner 思维链增量（其余模型为空串，静默跳过）
+                    reasoning = extract_reasoning_content(chunk)
+                    if reasoning:
+                        yield {
+                            "event": "message",
+                            "data": json.dumps(
+                                {"type": "reasoning", "data": reasoning}
+                            ),
+                        }
+                elif event["event"] == "on_chain_end":
+                    if event["name"] == "LangGraph":
+                        final_state = event["data"]["output"]
+                        continue
+                    node_name = event["name"]
+                    duration_ms = int(
+                        (time.time() - node_start_times.get(node_name, time.time()))
+                        * 1000
+                    )
+                    yield {
+                        "event": "message",
+                        "data": json.dumps(
+                            {
+                                "type": "node_end",
+                                "data": {
+                                    "node": node_name,
+                                    "label": stage_label(node_name),
+                                    "duration_ms": duration_ms,
+                                    "output": extract_trace_output(
+                                        node_name, event["data"].get("output")
+                                    ),
+                                },
+                            }
+                        ),
+                    }
 
             if final_state:
                 route_path = final_state.get("route_path")
