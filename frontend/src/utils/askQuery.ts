@@ -1,11 +1,13 @@
 // frontend/src/utils/askQuery.ts
 // 知识图谱"一键提问"的落地逻辑：消费 ?ask= 参数，自动发送并清除。
 // 抽为纯工具便于单测（route/router/store 由调用方注入）。
+import type { RouteLocationAsRelativeGeneric } from 'vue-router'
+
 interface AskRouteLike {
   query: { ask?: unknown }
 }
 interface AskRouterLike {
-  replace: (to: { query: Record<string, unknown> }) => Promise<unknown>
+  replace: (to: RouteLocationAsRelativeGeneric) => Promise<unknown>
 }
 interface AskStoreLike {
   inputText: string

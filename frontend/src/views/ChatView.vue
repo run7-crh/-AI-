@@ -3,6 +3,7 @@
 import { onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useChatStore } from '@/stores/chat'
+import { consumeAskQuery } from '@/utils/askQuery'
 import ConversationSidebar from '@/components/ConversationSidebar.vue'
 import ChatPanel from '@/components/ChatPanel.vue'
 
@@ -17,6 +18,8 @@ onMounted(async () => {
   if (id && store.conversations.some((c) => c.id === id)) {
     await store.selectConversation(id)
   }
+  // 知识图谱"一键提问"：检测 ?ask= 自动填入并发送（发送后清除参数防刷新重发）
+  await consumeAskQuery(route, router, store)
 })
 
 // 监听 currentConversationId 变化，同步到 URL（可选，便于分享）

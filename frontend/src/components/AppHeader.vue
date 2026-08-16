@@ -1,7 +1,7 @@
 <!-- frontend/src/components/AppHeader.vue -->
 <script setup lang="ts">
 import { useChatStore } from '@/stores/chat'
-import { Pencil } from 'lucide-vue-next'
+import { Pencil, Network } from 'lucide-vue-next'
 import { ref } from 'vue'
 
 const store = useChatStore()
@@ -71,5 +71,16 @@ function onKeydown(e: KeyboardEvent) {
         class="text-sm font-semibold text-stone-800 border border-stone-300 rounded-lg px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-stone-400/50 max-w-xs bg-transparent"
       />
     </div>
+
+    <!-- 知识图谱入口 -->
+    <nav class="flex items-center gap-2 shrink-0">
+      <RouterLink
+        to="/graph"
+        class="flex items-center gap-1.5 text-xs text-gray-500 hover:text-stone-800 border border-gray-200 hover:border-stone-300 rounded-lg px-2.5 py-1.5 transition-colors"
+        title="概念知识图谱"
+      >
+        <Network class="w-3.5 h-3.5" /> 知识图谱
+      </RouterLink>
+    </nav>
   </header>
 </template>
