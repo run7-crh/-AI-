@@ -114,6 +114,7 @@ export const useChatStore = defineStore('chat', () => {
     if (m && m.role === 'assistant' && m.isStreaming) {
       m.isStreaming = false
       m.currentStage = ''
+      finalizeRunningTrace(m, 'done')
       // 如果用户主动停止且已有内容，保留内容；无内容则标记为已停止
       if (!m.content) m.content = '_(已停止)_'
     }
@@ -170,6 +171,20 @@ export const useChatStore = defineStore('chat', () => {
     error.value = null
   }
 
+  /** 取最后一条 assistant 消息（流式回调的目标）。 */
+  function lastAssistant(): Message | null {
+    const m = messages.value[messages.value.length - 1]
+    return m && m.role === 'assistant' ? m : null
+  }
+
+  /** 把 trace 中所有 running 节点置为指定状态（error=后端异常，done=正常/手动停止收尾）。 */
+  function finalizeRunningTrace(m: Message | null, status: 'done' | 'error'): void {
+    if (!m?.trace) return
+    for (const t of m.trace) {
+      if (t.status === 'running') t.status = status
+    }
+  }
+
   /** 内部发送实现，供 sendMessage 与 retryLastMessage 复用。 */
   async function doSend(text: string): Promise<void> {
     error.value = null
@@ -194,6 +209,7 @@ export const useChatStore = defineStore('chat', () => {
       created_at: new Date().toISOString(),
       isStreaming: true,
       currentStage: '',
+      trace: [],
     }
     messages.value.push(assistantMsg)
 
@@ -207,16 +223,44 @@ export const useChatStore = defineStore('chat', () => {
         { conversation_id: convId, message: text },
         {
           onStage: (stage) => {
-            const m = messages.value[messages.value.length - 1]
-            if (m && m.role === 'assistant') m.currentStage = stage
+            const m = lastAssistant()
+            if (!m) return
+            m.currentStage = stage.label  // 保留：MessageList 滚动 watch 依赖
+            if (!m.trace) m.trace = []
+            if (!m.traceStartedAt) m.traceStartedAt = Date.now()
+            m.trace.push({ node: stage.node, label: stage.label, status: 'running' })
+          },
+          onReasoning: (text) => {
+            const m = lastAssistant()
+            if (!m?.trace) return
+            // 累加到最近的 running 节点（reasoning 发生在生成节点执行期间）
+            for (let i = m.trace.length - 1; i >= 0; i--) {
+              if (m.trace[i].status === 'running') {
+                m.trace[i].reasoning = (m.trace[i].reasoning || '') + text
+                break
+              }
+            }
+          },
+          onNodeEnd: (payload) => {
+            const m = lastAssistant()
+            if (!m?.trace) return
+            // 从后往前配对同名 running 节点（CRAG 回路多次执行各自配对）
+            for (let i = m.trace.length - 1; i >= 0; i--) {
+              if (m.trace[i].node === payload.node && m.trace[i].status === 'running') {
+                m.trace[i].status = 'done'
+                m.trace[i].durationMs = payload.duration_ms
+                m.trace[i].output = payload.output
+                break
+              }
+            }
           },
           onToken: (token) => {
-            const m = messages.value[messages.value.length - 1]
-            if (m && m.role === 'assistant') m.content += token
+            const m = lastAssistant()
+            if (m) m.content += token
           },
           onMeta: (meta: ChatMeta) => {
-            const m = messages.value[messages.value.length - 1]
-            if (m && m.role === 'assistant') {
+            const m = lastAssistant()
+            if (m) {
               m.route_path = meta.route_path
               m.sources = meta.sources
               m.judge_log = meta.judge_log
@@ -228,17 +272,22 @@ export const useChatStore = defineStore('chat', () => {
           },
           onError: (msg) => {
             error.value = msg
-            const m = messages.value[messages.value.length - 1]
-            if (m && m.role === 'assistant') {
+            const m = lastAssistant()
+            if (m) {
               m.isStreaming = false
+              finalizeRunningTrace(m, 'error')
               if (!m.content) m.content = `**错误**：${msg}`
             }
           },
           onDone: () => {
-            const m = messages.value[messages.value.length - 1]
-            if (m && m.role === 'assistant') {
+            const m = lastAssistant()
+            if (m) {
               m.isStreaming = false
               m.currentStage = ''
+              finalizeRunningTrace(m, 'done')
+              if (m.traceStartedAt !== undefined) {
+                m.traceDurationMs = Date.now() - m.traceStartedAt
+              }
             }
             isStreaming.value = false
           },
@@ -252,6 +301,7 @@ export const useChatStore = defineStore('chat', () => {
         if (m && m.role === 'assistant' && m.isStreaming) {
           m.isStreaming = false
           m.currentStage = ''
+          finalizeRunningTrace(m, 'done')
           if (!m.content) m.content = '_(已停止)_'
         }
         isStreaming.value = false

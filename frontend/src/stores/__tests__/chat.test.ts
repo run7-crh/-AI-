@@ -41,7 +41,7 @@ describe('chat store', () => {
     })
     ;(convApi.getConversation as any).mockResolvedValue({ id: 'new', messages: [] })
     ;(chatApi.streamChat as any).mockImplementation(async (_req: unknown, cb: any) => {
-      cb.onStage('正在...')
+      cb.onStage({ node: 'rewrite_query', label: '正在理解问题...' })
       cb.onToken('回')
       cb.onToken('答')
       cb.onDone()
@@ -150,5 +150,81 @@ describe('chat store', () => {
     expect(store.conversations.length).toBe(1)
     expect(store.conversations[0].id).toBe('2')
     expect(store.currentConversationId).toBe('2')
+  })
+
+  it('sendMessage maintains trace state machine with CRAG loop', async () => {
+    ;(convApi.createConversation as any).mockResolvedValue({
+      id: 'new', title: '', message_count: 0, created_at: '', updated_at: '',
+    })
+    ;(convApi.getConversation as any).mockResolvedValue({ id: 'new', messages: [] })
+    ;(chatApi.streamChat as any).mockImplementation(async (_req: unknown, cb: any) => {
+      cb.onStage({ node: 'rewrite_query', label: '正在理解问题...' })
+      cb.onNodeEnd({ node: 'rewrite_query', label: '正在理解问题...', duration_ms: 120, output: { rewritten_query: '什么是 RAG' } })
+      cb.onStage({ node: 'rag_retrieve', label: '正在检索知识库...' })
+      cb.onNodeEnd({ node: 'rag_retrieve', label: '正在检索知识库...', duration_ms: 300, output: { avg_reranker_score: 0.2 } })
+      // CRAG 回路：同名节点第二次执行，追加第二个节点行
+      cb.onStage({ node: 'rag_retrieve', label: '正在检索知识库...' })
+      cb.onNodeEnd({ node: 'rag_retrieve', label: '正在检索知识库...', duration_ms: 350, output: { avg_reranker_score: 0.8 } })
+      cb.onDone()
+    })
+
+    const store = useChatStore()
+    store.inputText = 'q'
+    await store.sendMessage()
+
+    const trace = store.messages[1].trace!
+    expect(trace.length).toBe(3)
+    expect(trace[0]).toMatchObject({
+      node: 'rewrite_query', status: 'done', durationMs: 120,
+      output: { rewritten_query: '什么是 RAG' },
+    })
+    expect(trace[1]).toMatchObject({ node: 'rag_retrieve', status: 'done', durationMs: 300 })
+    expect(trace[2]).toMatchObject({ node: 'rag_retrieve', status: 'done', durationMs: 350 })
+    // 挂钟总时长已记录
+    expect(typeof store.messages[1].traceDurationMs).toBe('number')
+  })
+
+  it('reasoning accumulates on the current running node', async () => {
+    ;(convApi.createConversation as any).mockResolvedValue({
+      id: 'new', title: '', message_count: 0, created_at: '', updated_at: '',
+    })
+    ;(convApi.getConversation as any).mockResolvedValue({ id: 'new', messages: [] })
+    ;(chatApi.streamChat as any).mockImplementation(async (_req: unknown, cb: any) => {
+      cb.onStage({ node: 'multi_step_reason', label: '正在逐步推理...' })
+      cb.onReasoning?.('第一步，')
+      cb.onReasoning?.('分析问题。')
+      cb.onNodeEnd({ node: 'multi_step_reason', label: '正在逐步推理...', duration_ms: 900, output: {} })
+      cb.onDone()
+    })
+
+    const store = useChatStore()
+    store.inputText = 'q'
+    await store.sendMessage()
+
+    const trace = store.messages[1].trace!
+    expect(trace[0].reasoning).toBe('第一步，分析问题。')
+    expect(trace[0].status).toBe('done')
+  })
+
+  it('error event marks running trace node as error', async () => {
+    ;(convApi.createConversation as any).mockResolvedValue({
+      id: 'new', title: '', message_count: 0, created_at: '', updated_at: '',
+    })
+    ;(convApi.getConversation as any).mockResolvedValue({ id: 'new', messages: [] })
+    ;(chatApi.streamChat as any).mockImplementation(async (_req: unknown, cb: any) => {
+      cb.onStage({ node: 'rewrite_query', label: '正在理解问题...' })
+      cb.onStage({ node: 'rag_retrieve', label: '正在检索知识库...' })
+      cb.onError('LLM 调用失败')
+      cb.onDone()
+    })
+
+    const store = useChatStore()
+    store.inputText = 'q'
+    await store.sendMessage()
+
+    const trace = store.messages[1].trace!
+    // onError 后 running 节点标 error；已 done 的不受影响
+    expect(trace[0].status).toBe('error')  // 注意：mock 中 rewrite_query 未发 node_end
+    expect(trace[1].status).toBe('error')
   })
 })
