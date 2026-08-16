@@ -32,6 +32,9 @@ class Settings(BaseSettings):
     # SQLite
     SQLITE_PATH: str = str(_PROJECT_ROOT / "backend" / "data" / "agent.db")
 
+    # 知识图谱产物（graph_builder 全量重建生成，GET /api/graph 直接读此文件）
+    KG_JSON_PATH: str = str(_PROJECT_ROOT / "backend" / "data" / "kg.json")
+
     # CORS
     CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://localhost:4173"]
 
