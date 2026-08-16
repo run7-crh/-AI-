@@ -19,6 +19,7 @@ import frontmatter
 from pydantic import BaseModel
 
 from app.config import settings
+from app.graph.tools import call_llm
 
 logger = logging.getLogger(__name__)
 
@@ -234,3 +235,119 @@ def compute_degrees(nodes: list[dict], edges: list[dict]) -> None:
         for n in nodes:
             if n["id"] in (e["source"], e["target"]):
                 n["degree"] += 1
+
+
+# ---------- LLM 层 ----------
+
+_LLM_CONTENT_CAP = 6000  # 单篇文档送 LLM 的字符上限（防超长文档撑爆 prompt）
+
+_EXTRACT_SYSTEM_PROMPT = (
+    "你是知识图谱构建专家。基于给定的 AI 概念文档内容，抽取概念摘要、所属大类、"
+    "与其他概念的关系。\n"
+    "严格要求：\n"
+    "1. summary 为一句话概念摘要，不超过 50 字\n"
+    "2. category 必须从给定枚举中选择\n"
+    "3. relations.target 必须严格取自给定的概念 ID 清单，不得编造\n"
+    "4. 关系必须以文档内容为依据，宁缺毋滥，最多 8 条\n"
+)
+
+
+def build_extract_user_prompt(c: Concept, concept_ids: list[str]) -> str:
+    """构造抽取 prompt：概念 ID 清单 + 当前概念 + 截断后的文档内容。"""
+    id_list = "、".join(concept_ids)
+    return (
+        f"概念 ID 清单（relations.target 只能从中选择）：{id_list}\n\n"
+        f"当前概念：{c.title}（ID: {c.id}）\n\n"
+        f"文档内容：\n{c.content[:_LLM_CONTENT_CAP]}"
+    )
+
+
+async def extract_concept_with_llm(
+    c: Concept, by_key: dict[str, Concept], alias_to_id: dict[str, str]
+) -> Optional[dict]:
+    """单篇 LLM 抽取。call_llm 内部已有 3 次重试，重试耗尽返回 None（该篇降级）。
+
+    返回值经净化：非法 category 兜底、非法 type 归"相关"、清单外 target 丢弃。
+    """
+    ids = list(by_key.keys())
+    try:
+        result = await call_llm(
+            _EXTRACT_SYSTEM_PROMPT,
+            build_extract_user_prompt(c, ids),
+            temperature=0.2,
+            output_schema=GraphExtractSchema,
+            model=settings.MODEL_FLASH,
+        )
+    except Exception:
+        logger.warning("graph_builder: LLM 抽取失败降级 %s", c.title, exc_info=True)
+        return None
+    structured = (result or {}).get("structured") or {}
+    category = structured.get("category")
+    if category not in CATEGORIES:
+        category = "基础架构"
+    relations: list[dict] = []
+    for r in structured.get("relations", []):
+        tid = resolve_target(str(r.get("target", "")), by_key, alias_to_id)
+        if not tid or tid == c.id:
+            continue
+        rtype = r.get("type")
+        if rtype not in RELATION_TYPES:
+            rtype = "相关"
+        relations.append({
+            "target": tid, "type": rtype,
+            "description": str(r.get("description", ""))[:30],
+        })
+    return {
+        "summary": str(structured.get("summary", ""))[:60],
+        "category": category,
+        "relations": relations,
+    }
+
+
+# ---------- 构建入口 ----------
+
+async def build_knowledge_graph(output_path: Optional[str] = None) -> dict:
+    """完整管线：扫描 raw → 对齐 → 规则边 → LLM 抽取 → 合并 → 写 kg.json。
+
+    供 index.py 在索引重建成功后调用；异常向上抛（调用方决定是否阻塞）。
+    """
+    raw_dir = Path(settings.KB_DATA_DIR)
+    out = Path(output_path or settings.KG_JSON_PATH)
+
+    docs: list[ConceptDoc] = []
+    for p in sorted(raw_dir.glob("*.md")):
+        d = parse_doc(p)
+        if d:
+            docs.append(d)
+    by_key, alias_to_id = align_concepts(docs)
+    rule_edges = build_rule_edges(by_key, alias_to_id)
+
+    llm_edges: list[dict] = []
+    for c in by_key.values():
+        extracted = await extract_concept_with_llm(c, by_key, alias_to_id)
+        if not extracted:
+            continue
+        c.summary = extracted["summary"]
+        c.category = extracted["category"]
+        for r in extracted["relations"]:
+            llm_edges.append({
+                "source": c.id, "target": r["target"],
+                "type": r["type"], "via": "llm", "description": r["description"],
+            })
+
+    edges = merge_edges(rule_edges, llm_edges)
+    nodes = [
+        {
+            "id": c.id, "title": c.title, "aliases": c.aliases,
+            "summary": c.summary, "category": c.category,
+            "tags": c.tags, "file": c.file, "degree": 0,
+        }
+        for c in by_key.values()
+    ]
+    compute_degrees(nodes, edges)
+
+    kg = {"built_at": datetime.now().isoformat(), "nodes": nodes, "edges": edges}
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(kg, ensure_ascii=False, indent=2), encoding="utf-8")
+    logger.info("graph_builder: %d 节点 %d 边 → %s", len(nodes), len(edges), out)
+    return {"nodes": len(nodes), "edges": len(edges)}

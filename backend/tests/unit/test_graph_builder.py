@@ -18,7 +18,8 @@ from app.rag.graph_builder import (
 
 
 def _write_md(tmp_path, name, title=None, aliases=None, tags=None, body="正文" * 150):
-    """生成测试用 Obsidian md（frontmatter + 正文）。"""
+    """生成测试用 Obsidian md（frontmatter + 正文）。tmp_path 可为尚未创建的目录。"""
+    tmp_path.mkdir(parents=True, exist_ok=True)
     fm = ["---"]
     if title:
         fm.append(f"title: {title}")
@@ -203,3 +204,148 @@ class TestComputeDegrees:
         ]
         compute_degrees(nodes, edges)
         assert {n["id"]: n["degree"] for n in nodes} == {"a": 2, "b": 1, "c": 1}
+
+
+# ---------- LLM 层与构建入口 ----------
+
+from unittest.mock import AsyncMock, patch  # noqa: E402
+
+from app.config import settings  # noqa: E402
+from app.rag.graph_builder import (  # noqa: E402
+    Concept,
+    build_extract_user_prompt,
+    build_knowledge_graph,
+    extract_concept_with_llm,
+)
+
+
+def _mini_kb(tmp_path):
+    """两概念迷你知识库：A 的相关知识章节指向 B。返回知识库目录。"""
+    _write_md(
+        tmp_path, "Agent.md", title="AI Agent 智能体", aliases=["智能体"],
+        body="Agent 内容。" * 100 + "\n\n## 十、相关知识\n- [[RAG 检索增强生成]] — 外挂知识库\n",
+    )
+    _write_md(tmp_path, "RAG.md", title="RAG 检索增强生成", body="RAG 内容。" * 100)
+    return tmp_path
+
+
+class TestExtractConceptWithLlm:
+    async def _run(self, tmp_path, structured):
+        p = _write_md(
+            tmp_path, "x.md", title="AI Agent 智能体", aliases=["智能体"],
+            body="正文" * 150,
+        )
+        d = parse_doc(p)
+        by_key, alias_to_id = align_concepts([d])
+        c = by_key[normalize_concept("AI Agent 智能体")]
+        with patch("app.rag.graph_builder.call_llm", new=AsyncMock(
+            return_value={"text": "", "structured": structured}
+        )):
+            return await extract_concept_with_llm(c, by_key, alias_to_id)
+
+    @pytest.mark.asyncio
+    async def test_normal_extraction(self, tmp_path):
+        result = await self._run(tmp_path, {
+            "summary": "自主感知决策执行任务的智能系统",
+            "category": "Agent工程",
+            "relations": [{"target": "RAG 检索增强生成", "type": "依赖", "description": "外挂知识"}],
+        })
+        assert result["summary"] == "自主感知决策执行任务的智能系统"
+        assert result["category"] == "Agent工程"
+        assert result["relations"] == [
+            {"target": "rag检索增强生成", "type": "依赖", "description": "外挂知识"}
+        ]
+
+    @pytest.mark.asyncio
+    async def test_illegal_type_clamped_and_unknown_target_dropped(self, tmp_path):
+        result = await self._run(tmp_path, {
+            "summary": "s",
+            "category": "不存在的类",
+            "relations": [
+                {"target": "RAG 检索增强生成", "type": "乱写的关系", "description": "d"},
+                {"target": "清单外概念", "type": "依赖", "description": "d"},
+            ],
+        })
+        # 非法 type 兜底为"相关"；target 不在概念清单内被丢弃；非法 category 兜底
+        assert result["category"] == "基础架构"
+        assert result["relations"] == [
+            {"target": "rag检索增强生成", "type": "相关", "description": "d"}
+        ]
+
+    @pytest.mark.asyncio
+    async def test_llm_failure_returns_none(self, tmp_path):
+        p = _write_md(tmp_path, "x.md", title="AI Agent 智能体", body="正文" * 150)
+        d = parse_doc(p)
+        by_key, alias_to_id = align_concepts([d])
+        with patch("app.rag.graph_builder.call_llm", new=AsyncMock(
+            side_effect=RuntimeError("重试耗尽")
+        )):
+            result = await extract_concept_with_llm(
+                by_key[normalize_concept("AI Agent 智能体")], by_key, alias_to_id
+            )
+        assert result is None
+
+
+class TestBuildExtractUserPrompt:
+    def test_prompt_contains_id_list_and_content(self):
+        c = Concept(
+            id="agent", title="Agent", aliases=[], tags=[], file="a.md",
+            content="文档内容" * 10,
+        )
+        prompt = build_extract_user_prompt(c, ["agent", "rag"])
+        assert "agent、rag" in prompt
+        assert "文档内容" in prompt
+
+
+class TestBuildKnowledgeGraph:
+    @pytest.mark.asyncio
+    async def test_pipeline_writes_kg_json(self, tmp_path, monkeypatch):
+        kb = _mini_kb(tmp_path / "raw")  # _write_md 内部已 mkdir
+        out = tmp_path / "kg.json"
+        monkeypatch.setattr(settings, "KB_DATA_DIR", str(kb))
+
+        async def fake_extract(c, by_key, alias_to_id):
+            return {
+                "summary": f"{c.title} 的摘要",
+                "category": "Agent工程",
+                "relations": [
+                    {"target": "rag检索增强生成", "type": "依赖", "description": "知识来源"}
+                ] if c.id == "aiagent智能体" else [],
+            }
+
+        with patch("app.rag.graph_builder.extract_concept_with_llm", new=fake_extract):
+            stats = await build_knowledge_graph(output_path=str(out))
+
+        assert stats["nodes"] == 2
+        kg = json.loads(out.read_text(encoding="utf-8"))
+        assert set(kg.keys()) == {"built_at", "nodes", "edges"}
+        ids = {n["id"] for n in kg["nodes"]}
+        assert ids == {"aiagent智能体", "rag检索增强生成"}
+        # 规则边被 LLM 边覆盖 type=依赖，via 保持 rule
+        assert kg["edges"] == [{
+            "source": "aiagent智能体", "target": "rag检索增强生成",
+            "type": "依赖", "via": "rule", "description": "知识来源",
+        }]
+        by_id = {n["id"]: n for n in kg["nodes"]}
+        assert by_id["aiagent智能体"]["summary"] == "AI Agent 智能体 的摘要"
+        assert by_id["aiagent智能体"]["category"] == "Agent工程"
+        assert by_id["aiagent智能体"]["degree"] == 1
+
+    @pytest.mark.asyncio
+    async def test_llm_failure_degrades_to_rule_edges(self, tmp_path, monkeypatch):
+        kb = _mini_kb(tmp_path / "raw")
+        out = tmp_path / "kg.json"
+        monkeypatch.setattr(settings, "KB_DATA_DIR", str(kb))
+
+        async def fake_extract(c, by_key, alias_to_id):
+            return None  # 全部失败
+
+        with patch("app.rag.graph_builder.extract_concept_with_llm", new=fake_extract):
+            stats = await build_knowledge_graph(output_path=str(out))
+        kg = json.loads(out.read_text(encoding="utf-8"))
+        # LLM 全挂：规则边保留、summary 为空、category 兜底
+        assert stats["nodes"] == 2
+        assert kg["edges"][0]["type"] == "相关"
+        assert kg["edges"][0]["description"] == "外挂知识库"
+        assert all(n["summary"] == "" for n in kg["nodes"])
+        assert all(n["category"] == "基础架构" for n in kg["nodes"])
