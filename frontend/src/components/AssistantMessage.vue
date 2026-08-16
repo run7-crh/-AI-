@@ -5,7 +5,7 @@ import type { Message, FeedbackRating, UselessReason } from '@/types'
 import { useChatStore } from '@/stores/chat'
 import { Copy, Check, RefreshCw, ThumbsUp, ThumbsDown, Bug } from 'lucide-vue-next'
 import MarkdownRenderer from './MarkdownRenderer.vue'
-import StageIndicator from './StageIndicator.vue'
+import TraceTimeline from './TraceTimeline.vue'
 import SourceCard from './SourceCard.vue'
 import JudgeBadges from './JudgeBadges.vue'
 import { putFeedback } from '@/api/feedback'
@@ -84,8 +84,13 @@ async function submitFeedback(rating: FeedbackRating, uselessReason?: UselessRea
     </div>
 
     <div class="flex flex-col gap-1 max-w-[80%]">
-      <!-- 阶段进度（流式时） -->
-      <StageIndicator :stage="message.isStreaming ? message.currentStage : undefined" />
+      <!-- 思考过程可视化：流式期间实时展开，完成后折叠（历史消息无 trace 不渲染） -->
+      <TraceTimeline
+        v-if="message.trace && message.trace.length"
+        :trace="message.trace"
+        :streaming="!!message.isStreaming"
+        :duration-ms="message.traceDurationMs"
+      />
 
       <!-- P1-3: 质量警告横幅（仅 quality_fail 路径展示） -->
       <div
