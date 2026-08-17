@@ -73,11 +73,17 @@ class TestParseDoc:
         assert d is not None
         assert d.title == "无标题"
 
-    def test_tags_string_form_flattened(self, tmp_path):
-        p = _write_md(tmp_path, "行内标签.md", title="行内标签", body="正文" * 150)
-        # _write_md 固定写 tags: [AI, 测试]，验证 list 形态
-        d = parse_doc(p)
-        assert d.tags == ["AI", "测试"]
+    def test_tags_list_and_string_form(self, tmp_path):
+        # list 形态：YAML 行内数组
+        p1 = _write_md(tmp_path, "行内标签.md", title="行内标签", tags=["x"], body="正文" * 150)
+        assert parse_doc(p1).tags == ["AI", "测试"]
+        # 字符串形态：带引号的逗号串（readers 展平语义一致）
+        p2 = tmp_path / "字符串标签.md"
+        p2.write_text(
+            '---\ntitle: 字符串标签\ntags: "AI,测试"\n---\n\n' + "正文" * 150,
+            encoding="utf-8",
+        )
+        assert parse_doc(p2).tags == ["AI", "测试"]
 
 
 class TestAlignConcepts:
@@ -136,8 +142,8 @@ class TestBuildRuleEdges:
         """A（含指向 B 的 wikilink）+ B 两个概念。"""
         pa = _write_md(
             tmp_path, "Agent.md", title="AI Agent 智能体", aliases=["智能体"],
-            body="Agent 依赖 [[RAG 检索增强生成]] 技术与 [[不存在的概念]]。\n\n"
-                 "## 十、相关知识\n- [[RAG 检索增强生成]] — 外挂知识库\n",
+            body="Agent 依赖 [[RAG 检索增强生成]] 技术与 [[不存在的概念]]。" * 6
+                 + "\n\n## 十、相关知识\n- [[RAG 检索增强生成]] — 外挂知识库\n",
         )
         pb = _write_md(tmp_path, "RAG.md", title="RAG 检索增强生成", body="RAG 是..." * 100)
         docs = [parse_doc(pa), parse_doc(pb)]
@@ -160,7 +166,7 @@ class TestBuildRuleEdges:
     def test_self_loop_dropped(self, tmp_path):
         pa = _write_md(
             tmp_path, "自指.md", title="自指概念",
-            body="参见 [[自指概念]] 自身。" * 10,
+            body="参见 [[自指概念]] 自身。" * 20,
         )
         by_key, alias_to_id = align_concepts([parse_doc(pa)])
         assert build_rule_edges(by_key, alias_to_id) == []
@@ -231,12 +237,14 @@ def _mini_kb(tmp_path):
 
 class TestExtractConceptWithLlm:
     async def _run(self, tmp_path, structured):
-        p = _write_md(
-            tmp_path, "x.md", title="AI Agent 智能体", aliases=["智能体"],
+        # 两个概念：relations 里引用的 RAG 必须存在于概念清单内才能被保留
+        pa = _write_md(
+            tmp_path, "Agent.md", title="AI Agent 智能体", aliases=["智能体"],
             body="正文" * 150,
         )
-        d = parse_doc(p)
-        by_key, alias_to_id = align_concepts([d])
+        pb = _write_md(tmp_path, "RAG.md", title="RAG 检索增强生成", body="正文" * 150)
+        docs = [parse_doc(pa), parse_doc(pb)]
+        by_key, alias_to_id = align_concepts(docs)
         c = by_key[normalize_concept("AI Agent 智能体")]
         with patch("app.rag.graph_builder.call_llm", new=AsyncMock(
             return_value={"text": "", "structured": structured}

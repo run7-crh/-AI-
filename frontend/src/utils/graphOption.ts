@@ -79,9 +79,9 @@ export function buildGraphOption(data: GraphData): Record<string, unknown> {
         type: 'graph',
         layout: 'force',
         force: {
-          repulsion: 320,
-          edgeLength: [90, 170],
-          gravity: 0.08,
+          repulsion: 600,
+          edgeLength: [140, 260],
+          gravity: 0.05,
           layoutAnimation: true,
         },
         roam: true,

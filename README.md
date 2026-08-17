@@ -150,6 +150,8 @@ rewrite_query -> decompose_question(needs_decomposition=true) -> multi_step_reas
 - **合并质量评估**：幻觉检测 + 答案质量一次 LLM 调用，`source` 按 `route_path` 动态取
 - **全链路 query_log 日志**：`asyncio.shield` 保护写入，客户端断开也不丢数据
 - **用户反馈闭环**：`PUT /api/feedback` upsert 语义，防止重复提交
+- **思维过程可视化**：SSE 下发 `node_end`/`reasoning` 事件，前端 `TraceTimeline` 折叠展示各节点中间产物（改写 query、分解意图、检索片段、CRAG 纠正回路），类似 LangSmith trace 嵌入聊天界面
+- **知识图谱可视化**：规则（wikilink + 相关知识章节）+ LLM 混合抽取实体关系，ECharts 力导向图渲染 5 大类节点与结构性/弱关系边，点击节点查看概念卡，一键生成提问跳转聊天
 
 ---
 
@@ -181,6 +183,7 @@ rewrite_query -> decompose_question(needs_decomposition=true) -> multi_step_reas
 - **类型**：TypeScript + `vue-tsc`
 - **样式**：Tailwind CSS（无组件库）
 - **Markdown 渲染**：markdown-it + highlight.js
+- **图表**：ECharts（按需引入 GraphChart，力导向图）
 - **图标**：lucide-vue-next
 - **测试**：vitest + `@vue/test-utils` + jsdom
 
@@ -272,9 +275,10 @@ TAVILY_API_KEY=tvly-xxxxxxxxxxxxxxxx
 Agent/
 ├── backend/                    # 后端
 │   ├── app/                    # FastAPI 应用
-│   │   ├── api/                # API 路由（chat, conversations, index, health）
+│   │   ├── api/                # API 路由（chat, conversations, index, health, feedback, graph, trace）
 │   │   ├── graph/              # LangGraph 编排层（nodes, builder, prompts, state, tools）
 │   │   ├── models/             # 数据模型（schemas, query_log）
+│   │   ├── rag/                # RAG 层（含 graph_builder 知识图谱抽取）
 │   │   ├── services/           # 服务层（conversation_store, query_log_service）
 │   │   ├── config.py           # 配置（pydantic-settings，从 .env 读）
 │   │   ├── main.py             # FastAPI 入口（lifespan，Reranker 预热）
@@ -296,11 +300,12 @@ Agent/
 │   └── .env.example            # 环境变量示例
 ├── frontend/                   # 前端
 │   ├── src/
-│   │   ├── api/                # API 客户端（chat.ts, conversations.ts）
-│   │   ├── components/         # 组件
-│   │   ├── stores/             # Pinia Store（chat.ts）
-│   │   ├── views/              # 视图（ChatView.vue）
-│   │   ├── types/              # TypeScript 类型
+│   │   ├── api/                # API 客户端（chat.ts, conversations.ts, graph.ts）
+│   │   ├── components/         # 组件（含 TraceTimeline 思维过程可视化）
+│   │   ├── stores/             # Pinia Store（chat.ts，含 trace 状态机）
+│   │   ├── views/              # 视图（ChatView.vue, GraphView.vue）
+│   │   ├── types/              # TypeScript 类型（含 trace/graph 事件协议）
+│   │   ├── utils/              # 工具（graphOption.ts 力导向图 option 构建器, askQuery.ts）
 │   │   └── App.vue             # 根组件
 │   ├── package.json            # Node 依赖
 │   └── vite.config.ts          # Vite 配置
