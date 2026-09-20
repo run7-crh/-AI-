@@ -7,6 +7,14 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
 
 class Settings(BaseSettings):
+    AUTH_ADMIN_USERNAME: str = "admin"
+    AUTH_ADMIN_PASSWORD: str = ""
+    AUTH_COOKIE_NAME: str = "agent_session"
+    AUTH_SESSION_TTL_SECONDS: int = 604800
+    AUTH_COOKIE_SECURE: bool = False
+    AUTH_PASSWORD_MIN_LENGTH: int = 8
+    AUTH_PASSWORD_MAX_LENGTH: int = 128
+
     # LLM (DeepSeek)
     DEEPSEEK_API_KEY: str
     DEEPSEEK_BASE_URL: str = "https://api.deepseek.com"
@@ -31,6 +39,10 @@ class Settings(BaseSettings):
 
     # SQLite
     SQLITE_PATH: str = str(_PROJECT_ROOT / "backend" / "data" / "agent.db")
+
+    KB_IMPORT_MAX_FILE_BYTES: int = 10 * 1024 * 1024
+    KB_IMPORT_MAX_FILES: int = 20
+    LOG_DIR: str = str(_PROJECT_ROOT / "backend" / "data" / "logs")
 
     # 知识图谱产物（graph_builder 全量重建生成，GET /api/graph 直接读此文件）
     KG_JSON_PATH: str = str(_PROJECT_ROOT / "backend" / "data" / "kg.json")
