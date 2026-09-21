@@ -1,6 +1,7 @@
 // frontend/src/api/graph.ts
 // 知识图谱 API：读 kg.json / 触发重建（复用索引重建接口，1/min 限速）。
 import type { GraphData } from '@/types'
+import { ApiError, apiFetch } from './http'
 
 export class GraphNotBuiltError extends Error {
   constructor() {
@@ -10,21 +11,28 @@ export class GraphNotBuiltError extends Error {
 }
 
 export async function fetchGraph(): Promise<GraphData> {
-  const r = await fetch('/api/graph')
-  if (r.status === 404) throw new GraphNotBuiltError()
-  if (!r.ok) throw new Error(`HTTP ${r.status}`)
-  return (await r.json()) as GraphData
+  try {
+    return (await (await apiFetch('/api/graph')).json()) as GraphData
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) throw new GraphNotBuiltError()
+    throw error
+  }
 }
 
 export interface RebuildResult {
   success: boolean
   doc_count: number
+  vector_count: number
   graph_built: boolean
 }
 
 export async function rebuildIndex(): Promise<RebuildResult> {
-  const r = await fetch('/api/index/rebuild', { method: 'POST' })
-  if (r.status === 429) throw new Error('重建请求过于频繁，请稍后再试')
-  if (!r.ok) throw new Error(`HTTP ${r.status}`)
-  return (await r.json()) as RebuildResult
+  try {
+    return (await (await apiFetch('/api/index/rebuild', { method: 'POST' })).json()) as RebuildResult
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 429) {
+      throw new ApiError(429, '重建请求过于频繁，请稍后再试')
+    }
+    throw error
+  }
 }

@@ -12,10 +12,12 @@ import { ArrowLeft, RefreshCw, Send, X } from 'lucide-vue-next'
 import { fetchGraph, rebuildIndex, GraphNotBuiltError } from '@/api/graph'
 import { buildGraphOption, CATEGORY_COLORS } from '@/utils/graphOption'
 import type { GraphData, GraphNode } from '@/types'
+import { useAuthStore } from '@/stores/auth'
 
 echarts.use([GraphChart, TooltipComponent, LegendComponent, CanvasRenderer])
 
 const router = useRouter()
+const auth = useAuthStore()
 
 const loading = ref(true)
 const notBuilt = ref(false)
@@ -138,6 +140,7 @@ onBeforeUnmount(() => {
           <p class="text-sm text-gray-500">知识图谱尚未构建</p>
           <p class="text-xs text-gray-400">重建知识库索引后将自动生成概念关系图谱</p>
           <button
+            v-if="auth.isAdmin"
             @click="onRebuild"
             :disabled="rebuilding"
             class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-stone-800 text-white text-xs font-medium hover:bg-stone-700 disabled:opacity-50 transition-colors"
@@ -145,6 +148,7 @@ onBeforeUnmount(() => {
             <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': rebuilding }" />
             {{ rebuilding ? '重建中（含 18 次 LLM 抽取，约 1-2 分钟）' : '重建知识库' }}
           </button>
+          <p v-else class="text-xs text-gray-400">请联系管理员构建知识图谱</p>
         </div>
         <div v-else class="text-center space-y-2">
           <p class="text-sm text-red-500">{{ loadError }}</p>

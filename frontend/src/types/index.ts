@@ -9,6 +9,19 @@ export interface Conversation {
   message_count: number
 }
 
+export interface User {
+  id: string
+  username: string
+  role: 'user' | 'admin'
+  is_active: boolean
+  created_at: string
+}
+
+export interface Credentials {
+  username: string
+  password: string
+}
+
 export interface Source {
   content: string
   source: string

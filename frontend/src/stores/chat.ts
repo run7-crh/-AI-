@@ -1,8 +1,15 @@
 // frontend/src/stores/chat.ts
 import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
-import type { Conversation, Message, ChatMeta } from '@/types'
+import type {
+  Attachment,
+  AttachmentStatusPayload,
+  Conversation,
+  Message,
+  ChatMeta,
+} from '@/types'
 import * as convApi from '@/api/conversations'
+import * as attachmentApi from '@/api/attachments'
 import { streamChat } from '@/api/chat'
 
 export const useChatStore = defineStore('chat', () => {
@@ -13,6 +20,13 @@ export const useChatStore = defineStore('chat', () => {
   const isStreaming = ref(false)
   const error = ref<string | null>(null)
 
+  // Attachments are temporary draft state. They are explicitly copied onto
+  // the next user message and cleared immediately after that round starts.
+  const pendingAttachments = ref<Attachment[]>([])
+  const attachmentUploadProgress = ref(0)
+  const isUploadingAttachments = ref(false)
+  let attachmentDraftGeneration = 0
+
   // UI 状态（不影响核心业务逻辑）
   const sidebarCollapsed = ref(false)
   const isLoadingConversations = ref(false)
@@ -20,6 +34,21 @@ export const useChatStore = defineStore('chat', () => {
 
   // 当前流式请求的 AbortController，用于手动中止
   let abortController: AbortController | null = null
+  // 每个流绑定一个 assistant message，避免旧请求的迟到事件污染新请求。
+  let activeRequestId: string | null = null
+  let sessionGeneration = 0
+
+  /** Drop all account-scoped state when a session ends or changes. */
+  function resetSession(): void {
+    sessionGeneration += 1
+    stopStreaming()
+    clearPendingAttachments()
+    conversations.value = []
+    currentConversationId.value = null
+    messages.value = []
+    inputText.value = ''
+    error.value = null
+  }
 
   // 从 localStorage 恢复侧边栏折叠状态
   try {
@@ -47,10 +76,129 @@ export const useChatStore = defineStore('chat', () => {
     return null
   })
 
+  function attachmentIsReady(attachment: Attachment): boolean {
+    return attachment.status === 'ready' &&
+      attachment.extraction_status === 'ready' &&
+      (!attachment.expires_at || new Date(attachment.expires_at).getTime() > Date.now())
+  }
+
+  const allPendingAttachmentsReady = computed(() =>
+    pendingAttachments.value.length > 0 && pendingAttachments.value.every(attachmentIsReady)
+  )
+
+  const hasBlockingAttachment = computed(() =>
+    pendingAttachments.value.some((attachment) =>
+      !attachmentIsReady(attachment)
+    )
+  )
+
+  const canSend = computed(() => {
+    if (isStreaming.value || isLoadingMessages.value || isUploadingAttachments.value) return false
+    const hasText = inputText.value.trim().length > 0
+    const hasReadyAttachments = allPendingAttachmentsReady.value
+    return !hasBlockingAttachment.value && (hasText || hasReadyAttachments)
+  })
+
+  function clearPendingAttachments(): void {
+    attachmentDraftGeneration += 1
+    pendingAttachments.value = []
+    attachmentUploadProgress.value = 0
+    // A conversation switch or a new round invalidates the draft. The XHR
+    // may finish later, but its generation token prevents stale results from
+    // re-entering the new conversation.
+    isUploadingAttachments.value = false
+  }
+
+  async function uploadAttachments(input: File[] | FileList): Promise<void> {
+    const files = Array.from(input)
+    if (!files.length || isUploadingAttachments.value) return
+    if (!currentConversationId.value) await createNewConversation()
+    const conversationId = currentConversationId.value
+    if (!conversationId) return
+
+    const generation = attachmentDraftGeneration
+    const now = new Date().toISOString()
+    const localEntries: Attachment[] = files.map((file, index) => ({
+      id: `local-${crypto.randomUUID()}-${index}`,
+      original_name: file.name,
+      extension: file.name.includes('.') ? file.name.split('.').pop()?.toLowerCase() || '' : '',
+      declared_mime: file.type || null,
+      size_bytes: file.size,
+      status: 'uploading',
+      extraction_status: 'pending',
+      created_at: now,
+      upload_progress: 0,
+    }))
+    pendingAttachments.value = [...pendingAttachments.value, ...localEntries]
+    isUploadingAttachments.value = true
+    attachmentUploadProgress.value = 0
+    try {
+      const response = await attachmentApi.uploadAttachments(
+        conversationId,
+        files,
+        (progress) => {
+          attachmentUploadProgress.value = progress
+          for (const entry of localEntries) entry.upload_progress = progress
+        },
+      )
+      if (generation !== attachmentDraftGeneration) {
+        // The draft was removed or the conversation changed while the XHR
+        // was in flight. Clean up server-side temporary files as well.
+        await Promise.allSettled(response.attachments.map((attachment) =>
+          attachmentApi.deleteAttachment(conversationId, attachment.attachment_id || attachment.id)
+        ))
+        return
+      }
+      const localIds = new Set(localEntries.map((entry) => entry.id))
+      const retained = pendingAttachments.value.filter((entry) => !localIds.has(entry.id))
+      pendingAttachments.value = [...retained, ...response.attachments]
+    } catch (cause) {
+      if (generation !== attachmentDraftGeneration) return
+      const message = cause instanceof Error ? cause.message : '附件上传失败'
+      for (const entry of localEntries) {
+        entry.status = 'failed'
+        entry.extraction_status = 'failed'
+        entry.extraction_error = message
+        entry.upload_progress = 0
+      }
+      error.value = message
+    } finally {
+      if (generation === attachmentDraftGeneration) {
+        isUploadingAttachments.value = false
+        attachmentUploadProgress.value = 100
+      }
+    }
+  }
+
+  async function removeAttachment(attachmentId: string): Promise<void> {
+    const attachment = pendingAttachments.value.find((item) => item.id === attachmentId)
+    if (!attachment) return
+    if (attachment.status === 'uploading') {
+      // Invalidate the in-flight batch so a late XHR response cannot restore a
+      // file the user explicitly removed.
+      attachmentDraftGeneration += 1
+      isUploadingAttachments.value = false
+      attachmentUploadProgress.value = 0
+    }
+    const serverId = attachment.attachment_id || attachment.id
+    if (!attachment.id.startsWith('local-') && currentConversationId.value) {
+      try {
+        await attachmentApi.deleteAttachment(currentConversationId.value, serverId)
+      } catch (cause) {
+        error.value = cause instanceof Error ? cause.message : '附件删除失败'
+        return
+      }
+    }
+    pendingAttachments.value = pendingAttachments.value.filter((item) => item.id !== attachmentId)
+  }
+
   async function loadConversations(): Promise<void> {
+    const generation = sessionGeneration
     isLoadingConversations.value = true
     try {
-      conversations.value = await convApi.listConversations()
+      const loadedConversations = await convApi.listConversations()
+      if (generation !== sessionGeneration) return
+      conversations.value = loadedConversations
       if (conversations.value.length > 0 && !currentConversationId.value) {
         await selectConversation(conversations.value[0].id)
       }
@@ -62,11 +210,15 @@ export const useChatStore = defineStore('chat', () => {
   async function selectConversation(id: string): Promise<void> {
     // 切换会话前先停止当前流（避免旧流事件污染新会话）
     stopStreaming()
+    clearPendingAttachments()
+    const generation = sessionGeneration
     currentConversationId.value = id
     isLoadingMessages.value = true
     try {
       const detail = await convApi.getConversation(id)
-      messages.value = detail.messages.map((m) => ({ ...m, isStreaming: false }))
+      if (generation === sessionGeneration && currentConversationId.value === id) {
+        messages.value = detail.messages.map((m) => ({ ...m, isStreaming: false }))
+      }
     } finally {
       isLoadingMessages.value = false
     }
@@ -75,6 +227,7 @@ export const useChatStore = defineStore('chat', () => {
   async function createNewConversation(): Promise<void> {
     // 新建会话前先停止当前流，避免 isStreaming 卡住导致 UI 锁死
     stopStreaming()
+    clearPendingAttachments()
     const conv = await convApi.createConversation()
     conversations.value.unshift(conv)
     currentConversationId.value = conv.id
@@ -85,6 +238,7 @@ export const useChatStore = defineStore('chat', () => {
     await convApi.deleteConversation(id)
     conversations.value = conversations.value.filter((c) => c.id !== id)
     if (currentConversationId.value === id) {
+      clearPendingAttachments()
       currentConversationId.value = null
       messages.value = []
       if (conversations.value.length > 0) {
@@ -105,12 +259,14 @@ export const useChatStore = defineStore('chat', () => {
    * - 网络超时/错误：显示错误信息
    */
   function stopStreaming(): void {
+    const requestId = activeRequestId
+    activeRequestId = null
     if (abortController) {
       abortController.abort()
       abortController = null
     }
     // 重置当前助手消息的流式状态
-    const m = messages.value[messages.value.length - 1]
+    const m = requestId ? messages.value.find((item) => item.id === requestId) : null
     if (m && m.role === 'assistant' && m.isStreaming) {
       m.isStreaming = false
       m.currentStage = ''
@@ -123,9 +279,26 @@ export const useChatStore = defineStore('chat', () => {
 
   async function sendMessage(): Promise<void> {
     const text = inputText.value.trim()
-    if (!text || isStreaming.value) return
+    // Do not append to a conversation while its history is being replaced by
+    // selectConversation(); otherwise the late GET response can overwrite the
+    // just-created user/assistant messages.
+    if (!text && !allPendingAttachmentsReady.value) {
+      if (pendingAttachments.value.length > 0) error.value = '请等待附件解析完成，或删除失败附件后再发送'
+      return
+    }
+    const readyAttachments = pendingAttachments.value.length > 0 && pendingAttachments.value.every(attachmentIsReady)
+    if (!readyAttachments && pendingAttachments.value.length > 0) {
+      error.value = '请等待附件解析完成，或删除失败附件后再发送'
+      return
+    }
+    if (!canSend.value) {
+      if (hasBlockingAttachment.value) error.value = '请等待附件解析完成，或删除失败附件后再发送'
+      return
+    }
     inputText.value = ''
-    await doSend(text)
+    const attachments = pendingAttachments.value.map((item) => ({ ...item }))
+    clearPendingAttachments()
+    await doSend(text, attachments)
   }
 
   /** 重试最后一条用户消息：将该问题重新填入输入框并重新发送。 */
@@ -171,12 +344,6 @@ export const useChatStore = defineStore('chat', () => {
     error.value = null
   }
 
-  /** 取最后一条 assistant 消息（流式回调的目标）。 */
-  function lastAssistant(): Message | null {
-    const m = messages.value[messages.value.length - 1]
-    return m && m.role === 'assistant' ? m : null
-  }
-
   /** 把 trace 中所有 running 节点置为指定状态（error=后端异常，done=正常/手动停止收尾）。 */
   function finalizeRunningTrace(m: Message | null, status: 'done' | 'error'): void {
     if (!m?.trace) return
@@ -186,7 +353,7 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   /** 内部发送实现，供 sendMessage 与 retryLastMessage 复用。 */
-  async function doSend(text: string): Promise<void> {
+  async function doSend(text: string, selectedAttachments: Attachment[] = []): Promise<void> {
     error.value = null
 
     if (!currentConversationId.value) {
@@ -194,11 +361,16 @@ export const useChatStore = defineStore('chat', () => {
     }
     const convId = currentConversationId.value as string
 
+    const attachmentSummaries = selectedAttachments.map((attachment) => {
+      const { sha256: _sha256, upload_progress: _uploadProgress, ...summary } = attachment
+      return summary
+    })
     const userMsg: Message = {
       id: crypto.randomUUID(),
       role: 'user',
       content: text,
       created_at: new Date().toISOString(),
+      attachments: attachmentSummaries.length ? attachmentSummaries : undefined,
     }
     messages.value.push(userMsg)
 
@@ -214,25 +386,43 @@ export const useChatStore = defineStore('chat', () => {
     messages.value.push(assistantMsg)
 
     isStreaming.value = true
+    const requestId = assistantMsg.id
+    activeRequestId = requestId
 
     // 为本次请求创建 AbortController，支持手动中止
-    abortController = new AbortController()
+    const requestController = new AbortController()
+    abortController = requestController
+    let requestHadServerEvent = false
+    let assistantPersisted = false
+    let requestSuperseded = false
+    const requestMessage = (): Message | null => {
+      if (activeRequestId !== requestId) return null
+      return messages.value.find((item) => item.id === requestId) ?? null
+    }
 
     try {
+      const chatRequest = {
+        conversation_id: convId,
+        message: text,
+        ...(selectedAttachments.length
+          ? { attachment_ids: selectedAttachments.map((attachment) => attachment.attachment_id || attachment.id) }
+          : {}),
+      }
       await streamChat(
-        { conversation_id: convId, message: text },
+        chatRequest,
         {
           onStage: (stage) => {
-            const m = lastAssistant()
-            if (!m) return
+            requestHadServerEvent = true
+            const m = requestMessage()
+            if (!m?.isStreaming) return
             m.currentStage = stage.label  // 保留：MessageList 滚动 watch 依赖
             if (!m.trace) m.trace = []
             if (!m.traceStartedAt) m.traceStartedAt = Date.now()
             m.trace.push({ node: stage.node, label: stage.label, status: 'running' })
           },
           onReasoning: (text) => {
-            const m = lastAssistant()
-            if (!m?.trace) return
+            const m = requestMessage()
+            if (!m?.isStreaming || !m.trace) return
             // 累加到最近的 running 节点（reasoning 发生在生成节点执行期间）
             for (let i = m.trace.length - 1; i >= 0; i--) {
               if (m.trace[i].status === 'running') {
@@ -242,8 +432,8 @@ export const useChatStore = defineStore('chat', () => {
             }
           },
           onNodeEnd: (payload) => {
-            const m = lastAssistant()
-            if (!m?.trace) return
+            const m = requestMessage()
+            if (!m?.isStreaming || !m.trace) return
             // 从后往前配对同名 running 节点（CRAG 回路多次执行各自配对）
             for (let i = m.trace.length - 1; i >= 0; i--) {
               if (m.trace[i].node === payload.node && m.trace[i].status === 'running') {
@@ -254,13 +444,33 @@ export const useChatStore = defineStore('chat', () => {
               }
             }
           },
+          onAttachmentStatus: (payload: AttachmentStatusPayload) => {
+            requestHadServerEvent = true
+            const m = requestMessage()
+            if (m) m.attachment_status = payload
+          },
           onToken: (token) => {
-            const m = lastAssistant()
+            requestHadServerEvent = true
+            const m = requestMessage()
             if (m) m.content += token
           },
+          onFinal: (answer) => {
+            const m = requestMessage()
+            if (!m?.isStreaming) return
+            requestHadServerEvent = true
+            assistantPersisted = true
+            // 服务端在流结束时发送规范化的完整答案。直接以它为准，
+            // 可消除重试过程中已经下发的重复/半截 token。
+            m.content = answer
+          },
           onMeta: (meta: ChatMeta) => {
-            const m = lastAssistant()
-            if (m) {
+            const m = requestMessage()
+            if (m?.isStreaming) {
+              requestHadServerEvent = true
+              assistantPersisted = true
+              // Compatibility for servers that only include the canonical
+              // answer in meta rather than sending a dedicated final event.
+              if (!m.content && meta.final_answer) m.content = meta.final_answer
               m.route_path = meta.route_path
               m.sources = meta.sources
               m.judge_log = meta.judge_log
@@ -268,19 +478,40 @@ export const useChatStore = defineStore('chat', () => {
               if (meta.quality_warning) m.quality_warning = meta.quality_warning
               // 第 2 阶段：绑定 query_log_id，供反馈接口使用
               if (meta.query_log_id) m.query_log_id = meta.query_log_id
+              // 阶段 2：安全与人工升级状态（旧服务缺字段时保持 undefined）
+              if (meta.safety_flag !== undefined) m.safety_flag = meta.safety_flag
+              if (meta.safety_level !== undefined) m.safety_level = meta.safety_level
+              if (meta.safety_situation !== undefined) m.safety_situation = meta.safety_situation
+              if (meta.escalation_required !== undefined) {
+                m.escalation_required = meta.escalation_required
+              }
+              // 阶段 3 字段：旧后端没有时保持 undefined，避免改动旧消息。
+              if (meta.intent !== undefined) m.intent = meta.intent
+              if (meta.metadata_constraints !== undefined) m.metadata_constraints = meta.metadata_constraints
+              if (meta.document_type_priority !== undefined) m.document_type_priority = meta.document_type_priority
+              if (meta.attachment_ids?.length) {
+                m.attachment_status = {
+                  phase: 'context',
+                  status: meta.attachment_parse_status === 'failed' ? 'failed' : 'ready',
+                  attachment_ids: meta.attachment_ids,
+                  message: meta.attachment_parse_status === 'failed'
+                    ? '附件上下文处理失败'
+                    : '附件仅作为本轮临时上下文使用',
+                }
+              }
             }
           },
           onError: (msg) => {
+            requestHadServerEvent = true
+            const m = requestMessage()
+            if (!m) return
             error.value = msg
-            const m = lastAssistant()
-            if (m) {
-              m.isStreaming = false
-              finalizeRunningTrace(m, 'error')
-              if (!m.content) m.content = `**错误**：${msg}`
-            }
+            m.isStreaming = false
+            finalizeRunningTrace(m, 'error')
+            if (!m.content) m.content = `**错误**：${msg}`
           },
           onDone: () => {
-            const m = lastAssistant()
+            const m = requestMessage()
             if (m) {
               m.isStreaming = false
               m.currentStage = ''
@@ -289,41 +520,50 @@ export const useChatStore = defineStore('chat', () => {
                 m.traceDurationMs = Date.now() - m.traceStartedAt
               }
             }
-            isStreaming.value = false
+            if (activeRequestId === requestId) isStreaming.value = false
           },
         },
-        abortController.signal
+        requestController.signal
       )
     } catch (e) {
       // AbortError 是用户主动中止，不算错误
       if (e instanceof Error && e.name === 'AbortError') {
-        const m = messages.value[messages.value.length - 1]
+        const m = requestMessage()
         if (m && m.role === 'assistant' && m.isStreaming) {
           m.isStreaming = false
           m.currentStage = ''
           finalizeRunningTrace(m, 'done')
           if (!m.content) m.content = '_(已停止)_'
         }
-        isStreaming.value = false
+        if (activeRequestId === requestId) isStreaming.value = false
         return
       }
+      if (activeRequestId !== requestId) return
       const msg = e instanceof Error ? e.message : String(e)
       error.value = msg
-      const m = messages.value[messages.value.length - 1]
+      const m = requestMessage()
       if (m && m.role === 'assistant') {
         m.isStreaming = false
         if (!m.content) m.content = `**错误**：${msg}`
       }
-      isStreaming.value = false
+      if (activeRequestId === requestId) isStreaming.value = false
     } finally {
-      abortController = null
+      if (activeRequestId === requestId) {
+        activeRequestId = null
+        abortController = null
+      } else {
+        requestSuperseded = true
+      }
     }
 
-    // 乐观更新会话列表
+    // SSE error/EOF paths persist at most the user message.  Only count the
+    // assistant when final/meta proves the backend inserted it; a transport
+    // failure before any event should not change the local count at all.
     const idx = conversations.value.findIndex((c) => c.id === convId)
-    if (idx !== -1) {
+    const persistedDelta = assistantPersisted ? 2 : requestHadServerEvent ? 1 : 0
+    if (!requestSuperseded && idx !== -1 && persistedDelta > 0) {
       const conv = conversations.value[idx]
-      conv.message_count += 2
+      conv.message_count += persistedDelta
       conv.updated_at = new Date().toISOString()
       conversations.value.splice(idx, 1)
       conversations.value.unshift(conv)
@@ -343,6 +583,13 @@ export const useChatStore = defineStore('chat', () => {
     inputText,
     isStreaming,
     error,
+    pendingAttachments,
+    attachmentUploadProgress,
+    isUploadingAttachments,
+    canSend,
+    uploadAttachments,
+    removeAttachment,
+    clearPendingAttachments,
     sidebarCollapsed,
     isLoadingConversations,
     isLoadingMessages,
@@ -357,5 +604,6 @@ export const useChatStore = defineStore('chat', () => {
     editUserMessage,
     stopStreaming,
     clearError,
+    resetSession,
   }
 })

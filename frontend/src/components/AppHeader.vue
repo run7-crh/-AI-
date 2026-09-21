@@ -1,10 +1,14 @@
 <!-- frontend/src/components/AppHeader.vue -->
 <script setup lang="ts">
 import { useChatStore } from '@/stores/chat'
+import { useAuthStore } from '@/stores/auth'
+import { useRouter } from 'vue-router'
 import { Pencil, Network } from 'lucide-vue-next'
 import { ref } from 'vue'
 
 const store = useChatStore()
+const auth = useAuthStore()
+const router = useRouter()
 const editing = ref(false)
 const draftTitle = ref('')
 const inputRef = ref<HTMLInputElement>()
@@ -32,6 +36,11 @@ function onKeydown(e: KeyboardEvent) {
   if (e.key === 'Enter') commitEdit()
   else if (e.key === 'Escape') cancelEdit()
 }
+
+async function logout() {
+  await auth.logout()
+  await router.replace({ name: 'login' })
+}
 </script>
 
 <template>
@@ -50,7 +59,7 @@ function onKeydown(e: KeyboardEvent) {
 
       <div v-if="!editing" class="flex items-center gap-1.5 min-w-0">
         <h1 class="text-sm font-semibold text-stone-800 truncate tracking-tight">
-          {{ store.currentConversation?.title || '智识助手' }}
+          {{ store.currentConversation?.title || '无人机智能售后' }}
         </h1>
         <button
           v-if="store.currentConversation"
@@ -81,6 +90,9 @@ function onKeydown(e: KeyboardEvent) {
       >
         <Network class="w-3.5 h-3.5" /> 知识图谱
       </RouterLink>
+      <RouterLink v-if="auth.isAdmin" to="/admin" class="text-xs text-gray-500 hover:text-stone-800">管理</RouterLink>
+      <span v-if="auth.user" class="text-xs text-stone-500">{{ auth.user.username }}</span>
+      <button v-if="auth.user" @click="logout" class="text-xs text-gray-500 hover:text-stone-800">退出</button>
     </nav>
   </header>
 </template>

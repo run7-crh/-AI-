@@ -10,7 +10,7 @@ describe('conversations API', () => {
   it('listConversations calls GET /api/conversations', async () => {
     ;(fetch as any).mockResolvedValue({ ok: true, json: async () => [] })
     await listConversations()
-    expect(fetch).toHaveBeenCalledWith('/api/conversations')
+    expect(fetch).toHaveBeenCalledWith('/api/conversations', { credentials: 'include' })
   })
 
   it('createConversation calls POST with body', async () => {
@@ -20,6 +20,7 @@ describe('conversations API', () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title: 'test' }),
+      credentials: 'include',
     })
   })
 
@@ -30,19 +31,20 @@ describe('conversations API', () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({}),
+      credentials: 'include',
     })
   })
 
   it('getConversation calls GET /api/conversations/:id', async () => {
     ;(fetch as any).mockResolvedValue({ ok: true, json: async () => ({ id: 'abc', messages: [] }) })
     await getConversation('abc')
-    expect(fetch).toHaveBeenCalledWith('/api/conversations/abc')
+    expect(fetch).toHaveBeenCalledWith('/api/conversations/abc', { credentials: 'include' })
   })
 
   it('deleteConversation calls DELETE', async () => {
     ;(fetch as any).mockResolvedValue({ ok: true, json: async () => ({ success: true }) })
     await deleteConversation('abc')
-    expect(fetch).toHaveBeenCalledWith('/api/conversations/abc', { method: 'DELETE' })
+    expect(fetch).toHaveBeenCalledWith('/api/conversations/abc', { method: 'DELETE', credentials: 'include' })
   })
 
   it('updateConversation calls PATCH with title', async () => {
@@ -52,6 +54,7 @@ describe('conversations API', () => {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title: '新' }),
+      credentials: 'include',
     })
   })
 

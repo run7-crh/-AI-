@@ -2,6 +2,7 @@
 // SSE 流式客户端：解析 sse-starlette 推送的事件，分发到回调。
 // 事件格式：data: {"type":"stage|token|meta|error|done","data":...}\n\n
 import type { ChatRequest, StreamCallbacks, ChatMeta, StagePayload, NodeEndPayload } from '@/types'
+import { apiFetch } from './http'
 
 // 无数据超时：连续 60s 收不到任何 chunk 视为连接卡死，主动中止。
 // DeepSeek 偶发 StreamChunkTimeoutError（120s），这里更激进些提前止损。
@@ -12,7 +13,7 @@ export async function streamChat(
   cb: StreamCallbacks,
   signal?: AbortSignal
 ): Promise<void> {
-  const r = await fetch('/api/chat', {
+  const r = await apiFetch('/api/chat', {
     method: 'POST',
     // 显式声明 Accept: text/event-stream，避免某些 proxy/浏览器缓冲整个响应
     headers: {
