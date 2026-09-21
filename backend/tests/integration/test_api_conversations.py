@@ -3,6 +3,7 @@ import pytest
 from httpx import AsyncClient, ASGITransport
 from asgi_lifespan import LifespanManager
 from app.main import app
+from tests.integration.conftest import login_admin
 
 
 @pytest.fixture
@@ -10,6 +11,7 @@ async def client():
     async with LifespanManager(app):
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as c:
+            await login_admin(c)
             yield c
 
 

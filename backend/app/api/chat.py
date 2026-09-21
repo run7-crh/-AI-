@@ -16,6 +16,7 @@ from app.api.errors import ERROR_MESSAGES
 from app.main import get_store, get_query_log_store
 from app.config import settings
 from app.extensions import limiter
+from app.api.dependencies import get_current_user
 from app.api.trace import (
     extract_reasoning_content,
     extract_trace_output,
@@ -62,13 +63,14 @@ async def chat_stream(
     request: Request,
     body: ChatRequest,
     store: ConversationStore = Depends(get_store),
+    user=Depends(get_current_user),
 ):
     # 第 1 阶段：记录请求起始时间与 log_id（即使异常也要落库）
     t0 = time.time()
     log_id = str(uuid4())
 
     # 先校验会话存在（404），再调用 get_graph()，避免 graph 未初始化时返回 500
-    conv = await store.get_conversation(body.conversation_id)
+    conv = await store.get_conversation(body.conversation_id, user.id)
     if not conv:
         raise HTTPException(status_code=404, detail="会话不存在")
 
@@ -77,7 +79,7 @@ async def chat_stream(
     await store.add_message(
         body.conversation_id, role="user", content=body.message
     )
-    history = await store.get_history(body.conversation_id, limit=10)
+    history = await store.get_history(body.conversation_id, limit=10, user_id=user.id)
 
     input_state = {
         "query": body.message,
@@ -241,6 +243,7 @@ async def chat_stream(
                     body=body,
                     final_state=final_state,
                     error_msg=error_msg,
+                    user_id=user.id,
                 ))
             except asyncio.CancelledError:
                 # shield 内部的 _write_query_log 会在后台继续执行完成；
@@ -262,6 +265,7 @@ async def _write_query_log(
     body: ChatRequest,
     final_state: dict | None,
     error_msg: str | None,
+    user_id: str,
 ) -> None:
     """从 final_state 提取所有字段，一次性 INSERT 到 query_log 表。
 
@@ -305,6 +309,7 @@ async def _write_query_log(
     record = QueryLogCreate(
         id=log_id,
         conversation_id=body.conversation_id,
+        user_id=user_id,
         user_label=body.user_label,
         raw_query=body.message,
         rewritten_query=rewritten_query,

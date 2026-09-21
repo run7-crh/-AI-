@@ -55,14 +55,21 @@ class FeedbackStore:
             await db.executescript(SCHEMA_SQL)
             await db.commit()
 
-    async def _query_log_exists(self, db: aiosqlite.Connection, query_log_id: str) -> bool:
+    async def _query_log_exists(
+        self, db: aiosqlite.Connection, query_log_id: str, user_id: str | None = None
+    ) -> bool:
         """校验 query_log_id 存在性（外键约束的显式校验，便于返回 404）。"""
-        cursor = await db.execute("SELECT 1 FROM query_log WHERE id = ?", (query_log_id,))
+        query = "SELECT 1 FROM query_log WHERE id = ?"
+        params = [query_log_id]
+        if user_id is not None:
+            query += " AND user_id = ?"
+            params.append(user_id)
+        cursor = await db.execute(query, params)
         row = await cursor.fetchone()
         return row is not None
 
     @_db_retry
-    async def upsert(self, record: FeedbackCreate) -> str:
+    async def upsert(self, record: FeedbackCreate, user_id: str | None = None) -> str:
         """upsert 反馈记录。
 
         Returns:
@@ -77,7 +84,7 @@ class FeedbackStore:
 
         async with aiosqlite.connect(self.db_path) as db:
             # 外键校验（返回友好 404，而非 sqlite3.IntegrityError）
-            if not await self._query_log_exists(db, record.query_log_id):
+            if not await self._query_log_exists(db, record.query_log_id, user_id):
                 raise ValueError(f"query_log_id 不存在: {record.query_log_id}")
 
             feedback_id = str(uuid4())

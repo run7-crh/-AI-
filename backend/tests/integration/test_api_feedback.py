@@ -19,6 +19,7 @@ from httpx import AsyncClient, ASGITransport
 from asgi_lifespan import LifespanManager
 
 from app.main import app, get_query_log_store
+from tests.integration.conftest import login_admin
 
 
 @pytest.fixture
@@ -26,6 +27,7 @@ async def client():
     async with LifespanManager(app):
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as c:
+            await login_admin(c)
             yield c
 
 
@@ -40,7 +42,7 @@ async def _seed_query_log(query_log_id: str = None) -> str:
     record = QueryLogCreate(
         id=query_log_id,
         conversation_id="test-conv-id",
-        user_label="A",
+        user_id=(await _seed_owner_id()), user_label="A",
         raw_query="测试问题",
         rewritten_query=None,
         route_path="local",
@@ -59,6 +61,15 @@ async def _seed_query_log(query_log_id: str = None) -> str:
     )
     await store.insert(record)
     return query_log_id
+
+
+async def _seed_owner_id():
+    from app.services.auth_store import AuthStore
+    from app.config import settings
+    import os
+    store = AuthStore(os.environ.get("TEST_SQLITE_PATH", settings.SQLITE_PATH))
+    user = await store.authenticate("test-admin", "Admin-pass-1")
+    return user.id
 
 
 @pytest.mark.asyncio
@@ -97,8 +108,6 @@ async def test_put_feedback_useless_without_reason_returns_422(client):
         "rating": "useless",
     })
     assert resp.status_code == 422, resp.text
-
-
 @pytest.mark.asyncio
 async def test_put_feedback_upsert(client):
     """4. PUT 同一 query_log_id 两次 → upsert 更新（不报错，rating 变更）。"""

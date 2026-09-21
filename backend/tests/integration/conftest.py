@@ -13,6 +13,21 @@ import pytest
 from app.config import settings
 
 
+async def register_and_login(client, username="fixture-user", password="Fixture-pass-1"):
+    response = await client.post("/api/auth/register", json={"username": username, "password": password})
+    assert response.status_code in (201, 409), response.text
+    if response.status_code == 409:
+        response = await client.post("/api/auth/login", json={"username": username, "password": password})
+    assert response.status_code == 200 or response.status_code == 201, response.text
+    return response.json()
+
+
+async def login_admin(client):
+    response = await client.post("/api/auth/login", json={"username": "test-admin", "password": "Admin-pass-1"})
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
 @pytest.fixture(autouse=True)
 def isolate_expensive_startup():
     settings.AUTH_ADMIN_USERNAME = "test-admin"

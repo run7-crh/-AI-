@@ -129,40 +129,49 @@ class ConversationStore:
 
     # 创建新会话
     @_db_retry
-    async def create_conversation(self, title: Optional[str] = None) -> str:
+    async def create_conversation(self, title: Optional[str] = None, user_id: Optional[str] = None) -> str:
         conv_id = str(uuid4())                           # 生成会话 id
         now = datetime.now(timezone.utc).isoformat()     # 生成 UTC 时间戳
         async with aiosqlite.connect(self.db_path) as db:  # 打开连接
             await _configure_db(db)                      # 应用连接级配置
             await db.execute(                            # 插入会话记录
-                "INSERT INTO conversations (id, title, created_at, updated_at) VALUES (?, ?, ?, ?)",
-                (conv_id, title or "新会话", now, now),  # 默认标题"新会话"
+                "INSERT INTO conversations (id, user_id, title, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+                (conv_id, user_id, title or "新会话", now, now),  # 默认标题"新会话"
             )
             await db.commit()                            # 提交
         return conv_id                                   # 返回新会话 id
 
     # 查询会话列表（按最近更新倒序）
     @_db_retry
-    async def list_conversations(self) -> list[dict]:
+    async def list_conversations(self, user_id: Optional[str] = None) -> list[dict]:
         async with aiosqlite.connect(self.db_path) as db:  # 打开连接
             await _configure_db(db)                      # 应用连接级配置
             db.row_factory = aiosqlite.Row               # 行以字典式 Row 返回
             # ISO timestamps can collide when two writes happen within the
             # clock's precision.  rowid is the insertion sequence for this
             # table and provides deterministic newest-first ordering on ties.
-            cursor = await db.execute(                   # 按更新时间倒序、rowid 兜底
-                "SELECT * FROM conversations ORDER BY updated_at DESC, rowid DESC"
-            )
+            query = "SELECT * FROM conversations"
+            params = ()
+            if user_id is not None:
+                query += " WHERE user_id = ?"
+                params = (user_id,)
+            query += " ORDER BY updated_at DESC, rowid DESC"
+            cursor = await db.execute(query, params)
             rows = await cursor.fetchall()               # 取全部行
             return [dict(row) for row in rows]           # 转字典列表
 
     # 获取单个会话详情（含消息）
     @_db_retry
-    async def get_conversation(self, conv_id: str) -> Optional[dict]:
+    async def get_conversation(self, conv_id: str, user_id: Optional[str] = None) -> Optional[dict]:
         async with aiosqlite.connect(self.db_path) as db:  # 打开连接
             await _configure_db(db)                      # 应用连接级配置
             db.row_factory = aiosqlite.Row               # 行以字典式 Row 返回
-            cursor = await db.execute("SELECT * FROM conversations WHERE id = ?", (conv_id,))  # 查会话
+            query = "SELECT * FROM conversations WHERE id = ?"
+            params = [conv_id]
+            if user_id is not None:
+                query += " AND user_id = ?"
+                params.append(user_id)
+            cursor = await db.execute(query, params)  # 查会话
             conv = await cursor.fetchone()               # 取第一条
             if not conv:                                 # 会话不存在
                 return None                              # 返回 None
@@ -287,9 +296,17 @@ class ConversationStore:
 
     # 删除会话（连带其消息与日志）
     @_db_retry
-    async def delete_conversation(self, conv_id: str) -> bool:
+    async def delete_conversation(self, conv_id: str, user_id: Optional[str] = None) -> bool:
         async with aiosqlite.connect(self.db_path) as db:  # 打开连接
             await _configure_db(db)                      # 应用连接级配置
+            check = "SELECT 1 FROM conversations WHERE id = ?"
+            check_params = [conv_id]
+            if user_id is not None:
+                check += " AND user_id = ?"
+                check_params.append(user_id)
+            exists = await (await db.execute(check, check_params)).fetchone()
+            if exists is None:
+                return False
             await db.execute("DELETE FROM messages WHERE conversation_id = ?", (conv_id,))  # 删消息
             # query_log predates the conversation FK and may exist without ON DELETE CASCADE.
             # Remove diagnostic records explicitly while keeping the store usable in tests
@@ -305,26 +322,32 @@ class ConversationStore:
 
     # 更新会话标题
     @_db_retry
-    async def update_conversation_title(self, conv_id, title) -> bool:
+    async def update_conversation_title(self, conv_id, title, user_id: Optional[str] = None) -> bool:
         now = datetime.now(timezone.utc).isoformat()     # 生成 UTC 时间戳
         async with aiosqlite.connect(self.db_path) as db:  # 打开连接
             await _configure_db(db)                      # 应用连接级配置
-            cursor = await db.execute(                   # 更新标题并刷新时间
-                "UPDATE conversations SET title = ?, updated_at = ? WHERE id = ?",
-                (title, now, conv_id),
-            )
+            query = "UPDATE conversations SET title = ?, updated_at = ? WHERE id = ?"
+            params = [title, now, conv_id]
+            if user_id is not None:
+                query += " AND user_id = ?"
+                params.append(user_id)
+            cursor = await db.execute(query, params)
             await db.commit()                            # 提交
             return cursor.rowcount > 0                   # 是否有行被更新
 
     # 获取最近若干条消息作为上下文（倒序取再正序返回）
     @_db_retry
-    async def get_history(self, conv_id: str, limit: int = 10) -> list[dict]:
+    async def get_history(self, conv_id: str, limit: int = 10, user_id: Optional[str] = None) -> list[dict]:
         async with aiosqlite.connect(self.db_path) as db:  # 打开连接
             await _configure_db(db)                      # 应用连接级配置
             db.row_factory = aiosqlite.Row               # 行以字典式 Row 返回
-            cursor = await db.execute(                   # 按时间倒序取最近 limit 条
-                "SELECT role, content FROM messages WHERE conversation_id = ? ORDER BY created_at DESC LIMIT ?",
-                (conv_id, limit),
-            )
+            query = "SELECT m.role, m.content FROM messages m JOIN conversations c ON c.id = m.conversation_id WHERE m.conversation_id = ?"
+            params = [conv_id]
+            if user_id is not None:
+                query += " AND c.user_id = ?"
+                params.append(user_id)
+            query += " ORDER BY m.created_at DESC LIMIT ?"
+            params.append(limit)
+            cursor = await db.execute(query, params)
             rows = await cursor.fetchall()               # 取查询结果
             return [{"role": r["role"], "content": r["content"]} for r in reversed(rows)]  # 反转为时间正序

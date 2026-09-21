@@ -6,6 +6,7 @@ import pytest
 from httpx import AsyncClient, ASGITransport
 from asgi_lifespan import LifespanManager
 from app.main import app
+from tests.integration.conftest import login_admin
 from app.config import settings
 
 KG_SAMPLE = {
@@ -32,6 +33,7 @@ async def test_graph_404_when_not_built(tmp_path, monkeypatch):
     async with LifespanManager(app):
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as c:
+            await login_admin(c)
             resp = await _get(c)
     assert resp.status_code == 404
     assert resp.json()["detail"] == "knowledge graph not built"
@@ -45,6 +47,7 @@ async def test_graph_200_with_etag(tmp_path, monkeypatch):
     async with LifespanManager(app):
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as c:
+            await login_admin(c)
             resp = await _get(c)
     assert resp.status_code == 200
     assert resp.json() == KG_SAMPLE
@@ -55,6 +58,7 @@ async def test_graph_200_with_etag(tmp_path, monkeypatch):
     async with LifespanManager(app):
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as c:
+            await login_admin(c)
             resp304 = await _get(c, headers={"If-None-Match": etag})
     assert resp304.status_code == 304
 
@@ -67,5 +71,6 @@ async def test_graph_500_when_corrupted(tmp_path, monkeypatch):
     async with LifespanManager(app):
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as c:
+            await login_admin(c)
             resp = await _get(c)
     assert resp.status_code == 500
