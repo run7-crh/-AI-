@@ -116,8 +116,17 @@ class AuthStore:
     async def delete_session(self,token):
         async with aiosqlite.connect(self.db_path) as db: await db.execute("PRAGMA foreign_keys=ON"); await db.execute("DELETE FROM sessions WHERE token_hash=?",(hash_session_token(token),)); await db.commit()
     async def set_active(self,user_id,active):
-        async with aiosqlite.connect(self.db_path) as db: await db.execute("PRAGMA foreign_keys=ON"); await db.execute("UPDATE users SET is_active=? WHERE id=?",(int(active),user_id));
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("PRAGMA foreign_keys=ON")
+            await db.execute("UPDATE users SET is_active=?, updated_at=? WHERE id=?",(int(active),datetime.now(timezone.utc).isoformat(),user_id))
+            await db.commit()
         if not active: await self.delete_sessions_for_user(user_id)
+
+    async def get_user(self, user_id):
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("PRAGMA foreign_keys=ON")
+            row = await (await db.execute("SELECT * FROM users WHERE id=?", (user_id,))).fetchone()
+            return self._public(row) if row else None
     async def list_users(self,limit=100,offset=0):
         async with aiosqlite.connect(self.db_path) as db: await db.execute("PRAGMA foreign_keys=ON"); return [self._public(r) for r in await (await db.execute("SELECT * FROM users ORDER BY created_at LIMIT ? OFFSET ?",(limit,offset))).fetchall()]
     async def delete_sessions_for_user(self,user_id):

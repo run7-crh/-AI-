@@ -1,11 +1,12 @@
 # backend/app/api/index.py
 import logging
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Depends
 from app.models.schemas import IndexRebuildResponse
 from app.rag.indexer import Indexer
 from app.rag.graph_builder import build_knowledge_graph
 from app.extensions import limiter
+from app.api.dependencies import require_admin
 
 router = APIRouter(prefix="/api/index", tags=["index"])
 
@@ -27,7 +28,7 @@ def get_indexer() -> Indexer:
 
 @router.post("/rebuild", response_model=IndexRebuildResponse)
 @limiter.limit("1/minute")
-async def rebuild_index(request: Request):
+async def rebuild_index(request: Request, _admin=Depends(require_admin)):
     # 直接调用 get_indexer()，不使用 Depends，便于测试 monkeypatch 生效
     indexer = get_indexer()
     try:

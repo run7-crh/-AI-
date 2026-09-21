@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
-from app.api import health, conversations, auth
+from app.api import health, conversations, auth, admin
 from app.api.dependencies import set_auth_store
 from app.api import index as index_api
 from app.api import feedback
@@ -164,6 +164,7 @@ from app.api import chat  # noqa: E402
 
 app.include_router(chat.router)
 app.include_router(index_api.router)
+app.include_router(admin.router)
 
 from app.api import graph as graph_api  # noqa: E402
 
