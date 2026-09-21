@@ -8,7 +8,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
-from app.api import health, conversations
+from app.api import health, conversations, auth
+from app.api.dependencies import set_auth_store
 from app.api import index as index_api
 from app.api import feedback
 from app.api.errors import register_error_handlers
@@ -16,6 +17,7 @@ from app.extensions import limiter
 from app.services.conversation_store import ConversationStore
 from app.services.query_log_service import QueryLogStore
 from app.services.feedback_service import FeedbackStore
+from app.services.auth_store import AuthStore
 from app.config import settings
 
 # 日志文件路径（uvicorn 启动后会覆盖 basicConfig，所以在 lifespan 中再配置一次）
@@ -95,6 +97,15 @@ async def lifespan(app: FastAPI):
     await _query_log_store.init()
     logger.info("QueryLogStore 初始化完成")
 
+    auth_store = AuthStore(db_path)
+    await auth_store.init(
+        admin_username=settings.AUTH_ADMIN_USERNAME,
+        admin_password=settings.AUTH_ADMIN_PASSWORD,
+    )
+    if await auth_store.count_active_admins() == 0 and not settings.AUTH_ADMIN_PASSWORD:
+        raise ValueError("AUTH_ADMIN_PASSWORD is required")
+    set_auth_store(auth_store)
+
     # 第 2 阶段：feedback 表与 query_log 表共享同一 db 文件，FK 关联
     global _feedback_store
     _feedback_store = FeedbackStore(db_path)
@@ -144,6 +155,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(health.router)
+app.include_router(auth.router)
 app.include_router(conversations.router)
 app.include_router(feedback.router)
 
