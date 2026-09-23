@@ -18,6 +18,7 @@ from app.services.conversation_store import ConversationStore
 from app.services.query_log_service import QueryLogStore
 from app.services.feedback_service import FeedbackStore
 from app.services.auth_store import AuthStore
+from app.services.ticket_store import TicketStore
 from app.config import settings
 
 # 日志文件路径（uvicorn 启动后会覆盖 basicConfig，所以在 lifespan 中再配置一次）
@@ -30,6 +31,7 @@ logger = logging.getLogger(__name__)
 _store: ConversationStore = None
 _query_log_store: QueryLogStore = None
 _feedback_store: FeedbackStore = None
+_ticket_store: TicketStore = None
 
 
 def _setup_file_logging() -> None:
@@ -79,6 +81,13 @@ def get_feedback_store() -> FeedbackStore:
     return _feedback_store
 
 
+def get_ticket_store() -> TicketStore:
+    """Return the single-brand ticket store initialized by the lifespan."""
+    if _ticket_store is None:
+        raise RuntimeError("TicketStore not initialized")
+    return _ticket_store
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global _store
@@ -90,6 +99,9 @@ async def lifespan(app: FastAPI):
     _store = ConversationStore(db_path)
     await _store.init()
     conversations.set_store(_store)
+    global _ticket_store
+    _ticket_store = TicketStore(db_path)
+    await _ticket_store.init()
 
     # 第 1 阶段：query_log 表与 conversations 共享同一 db 文件，表结构独立
     global _query_log_store
