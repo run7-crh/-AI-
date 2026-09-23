@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 在现有无人机售后 Agent 中实现用户建单、管理员处理、用户确认解决/重开以及附件证据留存的完整工单闭环。
+**Goal:** 在现有无人机售后 Agent 中，为一个无人机商家/品牌实现用户建单、品牌管理员处理、用户确认解决/重开以及附件证据留存的完整工单闭环。
 
-**Architecture:** 在现有 FastAPI + SQLite + Vue + Cookie 会话架构上新增独立的 TicketStore 和工单 API。会话、消息、query log 和附件仍由原有存储负责，工单只保存业务快照、状态和引用关系；状态转换集中在服务层校验，Agent 只生成草稿和建议，管理员和用户通过明确动作推进状态。
+**Architecture:** 在现有 FastAPI + SQLite + Vue + Cookie 会话架构上新增独立的 TicketStore 和工单 API。当前是单商家单品牌部署，知识库、工单队列和管理员操作都属于该品牌，不增加 `tenant_id` 或多租户抽象。会话、消息、query log 和附件仍由原有存储负责，工单只保存业务快照、状态和引用关系；状态转换集中在服务层校验，Agent 只生成草稿和建议，品牌管理员和用户通过明确动作推进状态。
 
 **Tech Stack:** FastAPI、Pydantic、aiosqlite、SQLite WAL、Vue 3、Pinia、Vue Router、Vitest、pytest/httpx。
 
@@ -47,6 +47,14 @@
 - `backend/tests/integration/conftest.py`：为工单集成测试提供同一 SQLite 生命周期和管理员登录 fixture。
 - `README.md`：补充已实现的第一阶段工单能力和仍未实现的外部 CRM 对接。
 
+### 第一阶段商家边界
+
+- 当前部署只服务一个无人机商家/品牌。
+- 现有 `admin` 账号就是该品牌的售后主管/处理人员。
+- 当前知识库、工单队列、SLA 配置和售后规则不带商家选择器。
+- 不增加 `tenant_id`、商家注册、员工邀请或跨商家隔离字段。
+- 未来多商家化必须单独设计租户迁移、知识库隔离和权限模型，不在本计划内。
+
 ## 状态和权限约束
 
 状态常量固定为：`draft`、`submitted`、`assigned`、`in_progress`、`waiting_user`、`resolved_pending_confirm`、`closed`、`reopened`、`cancelled`。
@@ -67,7 +75,7 @@ ALLOWED_TRANSITIONS = {
 }
 ```
 
-普通用户只能读取自己的工单、提交草稿、补充公开消息、确认解决和重开；管理员使用 `require_admin` 读取全部工单并执行接单、转派、内部备注、公开回复和处理状态变更；Agent 和系统只能通过服务层写入建议或审计事件。跨用户资源统一返回 404。
+普通用户只能读取自己的工单、提交草稿、补充公开消息、确认解决和重开；单商家范围内的管理员使用 `require_admin` 读取全部工单并执行接单、转派、内部备注、公开回复和处理状态变更；Agent 和系统只能通过服务层写入建议或审计事件。跨用户资源统一返回 404。
 
 ## Task 1: 建立工单领域模型和 SQLite 存储
 
@@ -354,7 +362,7 @@ git commit -m "feat: add user ticket experience"
 
 运行：`cd frontend; npm test -- --run src/components/__tests__/AdminTicketQueue.test.ts src/components/__tests__/AdminTicketDetail.test.ts`。
 
-- [ ] **Step 2: 实现管理员 API、队列和详情**
+- [ ] **Step 2: 实现品牌管理员 API、队列和详情**
 
 `adminTickets.ts` 实现列表、详情、更新和事件 API；队列支持 `status`、`priority`、`safety_level`、`assignee_user_id` 查询；详情展示会话摘要、来源、附件元数据和完整事件时间线。`AdminView.vue` 保留既有用户、反馈统计、日志和知识库区块，增加工单区块或标签页。
 
@@ -376,7 +384,7 @@ git commit -m "feat: add admin ticket workspace"
 
 - [ ] **Step 1: 更新 README**
 
-说明第一阶段支持自建工单、管理员处理、用户确认/重开和案件证据留存；外部 CRM、图片识别、视频诊断和设备遥测仍未实现。
+说明第一阶段只服务一个无人机商家/品牌，支持自建工单、品牌管理员处理、用户确认/重开和案件证据留存；外部 CRM、图片识别、视频诊断、设备遥测和多商家 SaaS 仍未实现。
 
 - [ ] **Step 2: 运行后端完整验证**
 
@@ -420,6 +428,6 @@ git commit -m "docs: document after-sales ticket workflow"
 
 - 设计中的三张工单表、三类角色、状态转换、证据提升、用户确认/重开、管理员处理、审计和权限均有对应任务。
 - 草稿到提交的流程通过 `POST /api/tickets/{id}/submit` 明确化，避免用户确认步骤没有后端动作。
-- 没有把外部 CRM、图片/视频诊断、设备遥测或新 RBAC 混入第一阶段。
+- 没有把外部 CRM、图片/视频诊断、设备遥测、多租户或新 RBAC 混入第一阶段。
 - 所有数据库写入集中在 Store/Service；API 只负责鉴权、输入校验和响应映射。
 - 既有会话、附件、认证、反馈和管理员功能保留，并在最后阶段做回归验证。
