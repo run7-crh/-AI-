@@ -8,7 +8,7 @@ import MarkdownRenderer from './MarkdownRenderer.vue'
 import TraceTimeline from './TraceTimeline.vue'
 import SourceCard from './SourceCard.vue'
 import JudgeBadges from './JudgeBadges.vue'
-import TicketDraftCard from './TicketDraftCard.vue'
+import TicketDraftModal from './TicketDraftModal.vue'
 import { putFeedback } from '@/api/feedback'
 
 const props = defineProps<{ message: Message }>()
@@ -61,7 +61,7 @@ const attachmentStatusLabel = computed(() => {
 const feedbackState = ref<FeedbackRating | null>(null)
 const showUselessReasons = ref(false)
 
-// 工单入口：只在后端明确给出 escalation_required 时展示，用户点击后展开草稿卡片。
+// 工单入口：只在后端明确给出 escalation_required 时展示，用户点击后弹出草稿窗口。
 const showTicketDraft = ref(false)
 const conversationId = computed(() => store.currentConversationId || '')
 const uselessReasonOptions: { value: UselessReason; label: string }[] = [
@@ -158,10 +158,10 @@ async function submitFeedback(rating: FeedbackRating, uselessReason?: UselessRea
             v-if="message.escalation_required && conversationId"
             class="mt-1.5 flex items-center gap-1 rounded-md border border-red-300 bg-white px-2 py-1 font-medium text-red-700 transition-colors hover:bg-red-100"
             data-testid="open-ticket-draft"
-            @click="showTicketDraft = !showTicketDraft"
+            @click="showTicketDraft = true"
           >
             <Ticket class="h-3.5 w-3.5" />
-            {{ showTicketDraft ? '收起工单' : '生成售后工单' }}
+            生成售后工单
           </button>
         </div>
       </div>
@@ -177,18 +177,17 @@ async function submitFeedback(rating: FeedbackRating, uselessReason?: UselessRea
           v-if="conversationId"
           class="flex items-center gap-1 rounded-md border border-amber-300 bg-white px-2 py-1 font-medium text-amber-800 transition-colors hover:bg-amber-100"
           data-testid="open-ticket-draft"
-          @click="showTicketDraft = !showTicketDraft"
+          @click="showTicketDraft = true"
         >
           <Ticket class="h-3.5 w-3.5" />
-          {{ showTicketDraft ? '收起工单' : '生成售后工单' }}
+          生成售后工单
         </button>
       </div>
 
-      <TicketDraftCard
-        v-if="showTicketDraft && message.escalation_required && conversationId"
-        :conversation-id="conversationId"
-        class="mt-2"
-        data-testid="assistant-ticket-draft"
+      <TicketDraftModal
+        :open="showTicketDraft"
+        :conversation-id="conversationId || null"
+        @close="showTicketDraft = false"
       />
 
       <div v-if="intentLabel" class="flex items-center gap-2 text-[11px] text-gray-500" data-testid="intent-label">
