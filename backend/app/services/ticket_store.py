@@ -164,6 +164,19 @@ class TicketStore:
             return dict(row) if row else None
 
     @_db_retry
+    async def delete_ticket(self, ticket_id: str) -> bool:
+        """Hard-delete a ticket; events and evidence cascade via FK.
+
+        Used only as compensation when post-creation steps (e.g. attachment
+        promotion) fail, so a failed draft leaves no orphan rows behind.
+        """
+        async with aiosqlite.connect(self.db_path) as db:
+            await _configure_db(db)
+            cursor = await db.execute("DELETE FROM tickets WHERE id = ?", (ticket_id,))
+            await db.commit()
+            return cursor.rowcount > 0
+
+    @_db_retry
     async def list_tickets(self, user_id: str | None = None) -> list[dict]:
         async with aiosqlite.connect(self.db_path) as db:
             await _configure_db(db)

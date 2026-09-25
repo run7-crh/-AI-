@@ -1,6 +1,7 @@
 import hashlib
 import os
 import sqlite3
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import aiosqlite
@@ -13,6 +14,7 @@ from app.services.attachment_security import (
 )
 from app.services.attachment_store import AttachmentStore, LocalAttachmentStorage
 from app.services.conversation_store import ConversationStore
+from app.services.ticket_store import TicketStore
 
 
 @pytest.fixture
@@ -82,6 +84,86 @@ async def test_expired_cleanup_removes_file_and_marks_record(attachment_store):
     expired = await store.get_attachment(conversation_id, record.id, include_deleted=True)
     assert expired is not None and expired.status == "expired"
     assert not storage.exists(record.storage_key)
+
+
+@pytest.mark.asyncio
+async def test_promoted_ticket_evidence_survives_cleanup(attachment_store):
+    store, conversations, conversation_id, storage = attachment_store
+    tickets = TicketStore(store.db_path)
+    await tickets.init()
+    record = await store.create_attachment(conversation_id, "flight.log", b"LOG\n", "text/plain")
+    ticket = await tickets.create_ticket({
+        "user_id": "user-1",
+        "conversation_id": conversation_id,
+        "title": "遥控器无法连接",
+        "problem_summary": "用户反馈遥控器无法连接飞机。",
+        "priority": "normal",
+        "safety_level": "none",
+        "status": "draft",
+    })
+    retention_until = (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
+
+    linked = await store.promote_to_ticket(
+        conversation_id, [record.id], ticket["id"], retention_until=retention_until
+    )
+    assert linked == [record.id]
+    evidence = await tickets.list_evidence(ticket["id"])
+    assert [(item["evidence_type"], item["evidence_id"]) for item in evidence] == [
+        ("attachment", record.id)
+    ]
+    promoted = await store.get_attachment(conversation_id, record.id)
+    assert promoted.expires_at > datetime.now(timezone.utc) + timedelta(days=29)
+
+    removed = await store.cleanup_expired(now="9999-01-01T00:00:00+00:00")
+    assert removed == 0
+    kept = await store.get_attachment(conversation_id, record.id)
+    assert kept is not None and kept.status == "ready"
+    assert storage.exists(record.storage_key)
+    # Duplicate promotion is absorbed by the evidence unique constraint.
+    linked_again = await store.promote_to_ticket(
+        conversation_id, [record.id], ticket["id"], retention_until=retention_until
+    )
+    assert linked_again == [record.id]
+    assert len(await tickets.list_evidence(ticket["id"])) == 1
+
+
+@pytest.mark.asyncio
+async def test_promote_rejects_foreign_and_non_ready_attachments(attachment_store):
+    store, conversations, conversation_id, _ = attachment_store
+    tickets = TicketStore(store.db_path)
+    await tickets.init()
+    ticket = await tickets.create_ticket({
+        "user_id": "user-1",
+        "conversation_id": conversation_id,
+        "title": "遥控器无法连接",
+        "problem_summary": "用户反馈遥控器无法连接飞机。",
+        "priority": "normal",
+        "safety_level": "none",
+        "status": "draft",
+    })
+    other_conversation_id = await conversations.create_conversation()
+    foreign = await store.create_attachment(
+        other_conversation_id, "other.log", b"OTHER\n", "text/plain"
+    )
+    with pytest.raises(AttachmentValidationError, match="attachment_not_found"):
+        await store.promote_to_ticket(
+            conversation_id,
+            [foreign.id],
+            ticket["id"],
+            retention_until="9999-01-01T00:00:00+00:00",
+        )
+    own = await store.create_attachment(conversation_id, "own.log", b"OWN\n", "text/plain")
+    await store.delete_attachment(conversation_id, own.id)
+    with pytest.raises(AttachmentValidationError, match="attachment_not_ready"):
+        await store.promote_to_ticket(
+            conversation_id,
+            [own.id],
+            ticket["id"],
+            retention_until="9999-01-01T00:00:00+00:00",
+        )
+    assert await store.promote_to_ticket(
+        conversation_id, [], ticket["id"], retention_until="9999-01-01T00:00:00+00:00"
+    ) == []
 
 
 @pytest.mark.asyncio

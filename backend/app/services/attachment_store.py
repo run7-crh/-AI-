@@ -442,19 +442,85 @@ class AttachmentStore:
         aiosqlite = self._db_module()
         async with aiosqlite.connect(self.db_path) as db:
             db.row_factory = aiosqlite.Row
+            # Attachments promoted to a ticket are case evidence: the cleanup
+            # pass must not destroy their payload.  The database may predate
+            # the ticket module entirely, so probe for the evidence table
+            # instead of assuming it exists.
+            evidence_table = await (await db.execute(
+                "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'ticket_evidence'"
+            )).fetchone()
+            evidence_guard = (
+                "AND NOT EXISTS (SELECT 1 FROM ticket_evidence te WHERE te.evidence_id = attachments.id AND te.evidence_type = 'attachment')"
+                if evidence_table
+                else ""
+            )
             rows = await (await db.execute(
-                "SELECT * FROM attachments WHERE status IN ('pending', 'ready') AND expires_at <= ?",
+                f"SELECT * FROM attachments WHERE status IN ('pending', 'ready') AND expires_at <= ? {evidence_guard}",
                 (cutoff,),
             )).fetchall()
             if rows:
                 await db.execute(
-                    "UPDATE attachments SET status = 'expired', deleted_at = ? WHERE status IN ('pending', 'ready') AND expires_at <= ?",
+                    f"UPDATE attachments SET status = 'expired', deleted_at = ? WHERE status IN ('pending', 'ready') AND expires_at <= ? {evidence_guard}",
                     (cutoff, cutoff),
                 )
                 await db.commit()
         for row in rows:
             self.storage.delete(row["storage_key"])
         return len(rows)
+
+    async def promote_to_ticket(
+        self,
+        conversation_id: str,
+        attachment_ids: list[str],
+        ticket_id: str,
+        *,
+        retention_until: str,
+    ) -> list[str]:
+        """Atomically bind ready conversation attachments to a ticket.
+
+        Every attachment is checked against the owning conversation and a
+        ``ready`` lifecycle state; the retention deadline is pushed to
+        ``retention_until`` so cleanup cannot destroy case evidence while the
+        ticket is open.  Duplicate promotions are absorbed by the unique
+        constraint on (ticket_id, evidence_type, evidence_id).
+        """
+        if not attachment_ids:
+            return []
+        if len(set(attachment_ids)) != len(attachment_ids):
+            raise AttachmentValidationError("duplicate_attachment_id")
+        aiosqlite = self._db_module()
+        now = self._now().isoformat()
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("PRAGMA foreign_keys = ON")
+            db.row_factory = aiosqlite.Row
+            placeholders = ", ".join("?" for _ in attachment_ids)
+            rows = await (await db.execute(
+                f"SELECT id, status FROM attachments WHERE id IN ({placeholders}) AND conversation_id = ?",
+                (*attachment_ids, conversation_id),
+            )).fetchall()
+            found = {row["id"] for row in rows}
+            for attachment_id in attachment_ids:
+                if attachment_id not in found:
+                    raise AttachmentValidationError("attachment_not_found")
+            for row in rows:
+                if row["status"] != "ready":
+                    raise AttachmentValidationError("attachment_not_ready")
+            linked: list[str] = []
+            for attachment_id in attachment_ids:
+                await db.execute(
+                    "UPDATE attachments SET expires_at = ? WHERE id = ? AND conversation_id = ?",
+                    (retention_until, attachment_id, conversation_id),
+                )
+                evidence_row_id = str(uuid4())
+                await db.execute(
+                    """INSERT OR IGNORE INTO ticket_evidence
+                    (id, ticket_id, evidence_type, evidence_id, created_at)
+                    VALUES (?, ?, 'attachment', ?, ?)""",
+                    (evidence_row_id, ticket_id, attachment_id, now),
+                )
+                linked.append(attachment_id)
+            await db.commit()
+            return linked
 
     async def link_message_attachment(self, conversation_id: str, message_id: str, attachment_id: str) -> bool:
         async with self._db_module().connect(self.db_path) as db:

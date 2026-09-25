@@ -10,6 +10,7 @@ audit event in the same transaction as the ticket update.
 from __future__ import annotations
 
 import json
+from datetime import timedelta
 from typing import Optional
 
 from app.services.ticket_store import TicketStore
@@ -45,6 +46,7 @@ _TRANSITION_EVENT_TYPES = {
 
 _TITLE_MAX_CHARS = 60
 _SUMMARY_MAX_CHARS = 800
+_EVIDENCE_RETENTION_DAYS = 30
 
 
 def _one_line(text: str) -> str:
@@ -68,11 +70,13 @@ class TicketService:
         conversation_store,
         query_log_store=None,
         attachment_store=None,
+        evidence_retention_days: int = _EVIDENCE_RETENTION_DAYS,
     ):
         self._ticket_store = ticket_store
         self._conversation_store = conversation_store
         self._query_log_store = query_log_store
         self._attachment_store = attachment_store
+        self._evidence_retention_days = evidence_retention_days
 
     # ------------------------------------------------------------------ draft
 
@@ -83,11 +87,14 @@ class TicketService:
         *,
         actor_type: str = "user",
         actor_id: Optional[str] = None,
+        attachment_ids: Optional[list[str]] = None,
     ) -> dict:
         """Create (or return the existing) draft ticket for one conversation.
 
         Idempotent per (user_id, conversation_id): repeated calls return the
-        same ticket without emitting another "created" event.
+        same ticket without emitting another "created" event. When attachment
+        promotion fails the just-created draft is deleted as compensation so
+        no orphan ticket, event or evidence rows remain.
         """
         if actor_type not in ("user", "admin", "agent"):
             raise ValueError("ticket_actor_invalid")
@@ -149,7 +156,38 @@ class TicketService:
                 "message_count": len(conversation.get("messages") or []),
             },
         )
-        return ticket
+        if self._attachment_store is not None:
+            try:
+                await self._promote_attachments(ticket, conversation_id, attachment_ids)
+            except Exception:
+                await self._ticket_store.delete_ticket(ticket["id"])
+                raise
+        return await self._ticket_store.get_ticket(ticket["id"]) or ticket
+
+    async def _promote_attachments(
+        self, ticket: dict, conversation_id: str, attachment_ids: Optional[list[str]]
+    ) -> None:
+        """Link conversation attachments as ticket evidence.
+
+        Without explicit ids every ``ready`` attachment of the conversation is
+        promoted; explicit ids are validated by the store. Retention is pushed
+        out so cleanup keeps case evidence while the ticket is open.
+        """
+        if attachment_ids is None:
+            records = await self._attachment_store.get_attachments(conversation_id)
+            selected = [record.id for record in records if record.status == "ready"]
+        else:
+            selected = list(attachment_ids)
+        if not selected:
+            return
+        from datetime import datetime, timezone
+
+        retention_until = (
+            datetime.now(timezone.utc) + timedelta(days=self._evidence_retention_days)
+        ).isoformat()
+        await self._attachment_store.promote_to_ticket(
+            conversation_id, selected, ticket["id"], retention_until=retention_until
+        )
 
     @staticmethod
     def _extract_fields(rows: list[dict]) -> dict:

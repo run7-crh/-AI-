@@ -1,9 +1,11 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 import pytest
 
 from app.models.query_log import QueryLogCreate
+from app.services.attachment_store import AttachmentStore, LocalAttachmentStorage
+from app.services.attachment_security import AttachmentValidationError
 from app.services.conversation_store import ConversationStore
 from app.services.query_log_service import QueryLogStore
 from app.services.ticket_service import TicketService
@@ -23,6 +25,24 @@ async def _make_service(tmp_path):
         query_log_store=query_log_store,
     )
     return service, ticket_store, conversation_store, query_log_store
+
+
+async def _make_attachment_service(tmp_path):
+    db_path = str(tmp_path / "tickets.db")
+    ticket_store = TicketStore(db_path)
+    conversation_store = ConversationStore(db_path)
+    query_log_store = QueryLogStore(db_path)
+    storage = LocalAttachmentStorage(tmp_path / "attachments")
+    attachment_store = AttachmentStore(db_path, storage=storage)
+    for store in (ticket_store, conversation_store, query_log_store, attachment_store):
+        await store.init()
+    service = TicketService(
+        ticket_store=ticket_store,
+        conversation_store=conversation_store,
+        query_log_store=query_log_store,
+        attachment_store=attachment_store,
+    )
+    return service, ticket_store, conversation_store, attachment_store
 
 
 async def _seed_conversation(
@@ -292,3 +312,42 @@ async def test_stale_status_transition_conflicts(tmp_path):
             to_status="assigned",
             event={"actor_type": "admin", "event_type": "assigned"},
         )
+
+
+@pytest.mark.asyncio
+async def test_create_draft_promotes_ready_attachments_as_evidence(tmp_path):
+    service, ticket_store, conversation_store, attachment_store = (
+        await _make_attachment_service(tmp_path)
+    )
+    conv_id = await _seed_conversation(conversation_store)
+    created = await attachment_store.create_attachment(
+        conv_id, "flight.log", b"LOG DATA\n", "text/plain"
+    )
+
+    ticket = await service.create_draft_from_conversation("user-1", conv_id)
+
+    evidence = await ticket_store.list_evidence(ticket["id"])
+    assert [(item["evidence_type"], item["evidence_id"]) for item in evidence] == [
+        ("attachment", created.id)
+    ]
+    promoted = await attachment_store.get_attachment(conv_id, created.id)
+    assert promoted.expires_at > datetime.now(timezone.utc) + timedelta(days=29)
+
+
+@pytest.mark.asyncio
+async def test_create_draft_compensates_when_promotion_fails(tmp_path):
+    service, ticket_store, conversation_store, attachment_store = (
+        await _make_attachment_service(tmp_path)
+    )
+    conv_id = await _seed_conversation(conversation_store)
+    other_conv = await conversation_store.create_conversation(user_id="user-1")
+    foreign = await attachment_store.create_attachment(
+        other_conv, "other.log", b"OTHER\n", "text/plain"
+    )
+
+    with pytest.raises(AttachmentValidationError):
+        await service.create_draft_from_conversation(
+            "user-1", conv_id, attachment_ids=[foreign.id]
+        )
+
+    assert await ticket_store.get_by_user_conversation("user-1", conv_id) is None
