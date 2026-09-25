@@ -10,6 +10,9 @@ export const router = createRouter({
     { path: '/login', name: 'login', component: () => import('@/views/LoginView.vue'), meta: { public: true } },
     { path: '/chat', name: 'chat', component: ChatView, meta: { requiresAuth: true } },
     { path: '/chat/:id', name: 'chat-with-id', component: ChatView, meta: { requiresAuth: true } },
+    // 售后工单：用户列表与详情（登录后可用）
+    { path: '/tickets', name: 'tickets', component: () => import('@/views/TicketsView.vue'), meta: { requiresAuth: true } },
+    { path: '/tickets/:id', name: 'ticket-detail', component: () => import('@/views/TicketDetailView.vue'), meta: { requiresAuth: true } },
     // 知识图谱：懒加载（echarts ~1MB，避免拖慢聊天首屏）
     { path: '/graph', name: 'graph', component: () => import('@/views/GraphView.vue'), meta: { requiresAuth: true } },
     { path: '/admin', name: 'admin', component: () => import('@/views/AdminView.vue'), meta: { requiresAuth: true, requiresAdmin: true } },

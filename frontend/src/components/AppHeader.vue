@@ -3,7 +3,7 @@
 import { useChatStore } from '@/stores/chat'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
-import { Pencil, Network } from 'lucide-vue-next'
+import { Pencil, Network, Ticket } from 'lucide-vue-next'
 import { ref } from 'vue'
 
 const store = useChatStore()
@@ -81,8 +81,15 @@ async function logout() {
       />
     </div>
 
-    <!-- 知识图谱入口 -->
+    <!-- 知识图谱 / 工单入口 -->
     <nav class="flex items-center gap-2 shrink-0">
+      <RouterLink
+        to="/tickets"
+        class="flex items-center gap-1.5 text-xs text-gray-500 hover:text-stone-800 border border-gray-200 hover:border-stone-300 rounded-lg px-2.5 py-1.5 transition-colors"
+        title="我的售后工单"
+      >
+        <Ticket class="w-3.5 h-3.5" /> 我的工单
+      </RouterLink>
       <RouterLink
         to="/graph"
         class="flex items-center gap-1.5 text-xs text-gray-500 hover:text-stone-800 border border-gray-200 hover:border-stone-300 rounded-lg px-2.5 py-1.5 transition-colors"

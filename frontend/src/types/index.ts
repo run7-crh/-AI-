@@ -234,3 +234,73 @@ export interface GraphData {
   nodes: GraphNode[]
   edges: GraphEdge[]
 }
+
+// ------------------------- 售后工单（单商家第一阶段） -------------------------
+
+export type TicketStatus =
+  | 'draft'
+  | 'submitted'
+  | 'assigned'
+  | 'in_progress'
+  | 'waiting_user'
+  | 'resolved_pending_confirm'
+  | 'closed'
+  | 'reopened'
+  | 'cancelled'
+
+export type TicketPriority = 'low' | 'normal' | 'high' | 'urgent'
+
+export type TicketActorType = 'user' | 'admin' | 'agent' | 'system'
+
+export interface Ticket {
+  id: string
+  ticket_number: string
+  user_id: string
+  conversation_id: string
+  title: string
+  problem_summary: string
+  device_model: string | null
+  serial_number: string | null
+  firmware_version: string | null
+  fault_category: string | null
+  priority: TicketPriority
+  safety_level: string
+  escalation_reason: string | null
+  assignee_user_id: string | null
+  status: TicketStatus
+  resolution_summary: string | null
+  created_at: string
+  updated_at: string
+  resolved_at: string | null
+  closed_at: string | null
+  user_confirmed_at: string | null
+}
+
+export interface TicketEvent {
+  id: string
+  ticket_id: string
+  actor_type: TicketActorType
+  actor_id: string | null
+  event_type: string
+  from_status: TicketStatus | null
+  to_status: TicketStatus | null
+  body: string | null
+  metadata: Record<string, unknown>
+  created_at: string
+}
+
+export type TicketEvidenceType = 'attachment' | 'message' | 'query_log'
+
+export interface TicketEvidence {
+  id: string
+  ticket_id: string
+  evidence_type: TicketEvidenceType
+  evidence_id: string
+  created_at: string
+}
+
+export interface TicketDetail {
+  ticket: Ticket
+  events: TicketEvent[]
+  evidence: TicketEvidence[]
+}

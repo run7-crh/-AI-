@@ -3,11 +3,12 @@
 import { computed, ref } from 'vue'
 import type { Message, FeedbackRating, UselessReason } from '@/types'
 import { useChatStore } from '@/stores/chat'
-import { Copy, Check, RefreshCw, ThumbsUp, ThumbsDown, Bug, ShieldAlert, Headset } from 'lucide-vue-next'
+import { Copy, Check, RefreshCw, ThumbsUp, ThumbsDown, Bug, ShieldAlert, Headset, Ticket } from 'lucide-vue-next'
 import MarkdownRenderer from './MarkdownRenderer.vue'
 import TraceTimeline from './TraceTimeline.vue'
 import SourceCard from './SourceCard.vue'
 import JudgeBadges from './JudgeBadges.vue'
+import TicketDraftCard from './TicketDraftCard.vue'
 import { putFeedback } from '@/api/feedback'
 
 const props = defineProps<{ message: Message }>()
@@ -59,6 +60,10 @@ const attachmentStatusLabel = computed(() => {
 // 第 2 阶段：反馈状态（已反馈时按钮置灰）
 const feedbackState = ref<FeedbackRating | null>(null)
 const showUselessReasons = ref(false)
+
+// 工单入口：只在后端明确给出 escalation_required 时展示，用户点击后展开草稿卡片。
+const showTicketDraft = ref(false)
+const conversationId = computed(() => store.currentConversationId || '')
 const uselessReasonOptions: { value: UselessReason; label: string }[] = [
   { value: 'irrelevant', label: '答非所问' },
   { value: 'hallucination', label: '编造' },
@@ -149,17 +154,42 @@ async function submitFeedback(rating: FeedbackRating, uselessReason?: UselessRea
             <Headset class="mt-0.5 h-3.5 w-3.5 shrink-0" />
             建议联系人工或官方售后支持，当前问题需要进一步确认。
           </div>
+          <button
+            v-if="message.escalation_required && conversationId"
+            class="mt-1.5 flex items-center gap-1 rounded-md border border-red-300 bg-white px-2 py-1 font-medium text-red-700 transition-colors hover:bg-red-100"
+            data-testid="open-ticket-draft"
+            @click="showTicketDraft = !showTicketDraft"
+          >
+            <Ticket class="h-3.5 w-3.5" />
+            {{ showTicketDraft ? '收起工单' : '生成售后工单' }}
+          </button>
         </div>
       </div>
 
       <div
         v-else-if="message.escalation_required"
-        class="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900"
+        class="flex flex-wrap items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900"
         data-testid="escalation-notice"
       >
         <Headset class="h-4 w-4 shrink-0 text-amber-600" />
         建议联系人工或官方售后支持，当前问题需要进一步确认。
+        <button
+          v-if="conversationId"
+          class="flex items-center gap-1 rounded-md border border-amber-300 bg-white px-2 py-1 font-medium text-amber-800 transition-colors hover:bg-amber-100"
+          data-testid="open-ticket-draft"
+          @click="showTicketDraft = !showTicketDraft"
+        >
+          <Ticket class="h-3.5 w-3.5" />
+          {{ showTicketDraft ? '收起工单' : '生成售后工单' }}
+        </button>
       </div>
+
+      <TicketDraftCard
+        v-if="showTicketDraft && message.escalation_required && conversationId"
+        :conversation-id="conversationId"
+        class="mt-2"
+        data-testid="assistant-ticket-draft"
+      />
 
       <div v-if="intentLabel" class="flex items-center gap-2 text-[11px] text-gray-500" data-testid="intent-label">
         <span class="rounded-full border border-stone-200 bg-stone-50 px-2 py-0.5">问题类型：{{ intentLabel }}</span>
