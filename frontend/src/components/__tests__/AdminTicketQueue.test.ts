@@ -59,7 +59,13 @@ describe('AdminTicketQueue', () => {
 
   it('opens the detail view when a row is selected', async () => {
     ;(adminTicketsApi.getTicketDetail as any).mockResolvedValue({ ticket, events: [], evidence: [] })
-    const wrapper = mount(AdminTicketQueue)
+    const wrapper = mount(AdminTicketQueue, {
+      props: {
+        users: [
+          { id: 'admin-1', username: 'brand-admin', role: 'admin', is_active: true, created_at: '' },
+        ],
+      },
+    })
     await flushPromises()
 
     await wrapper.find('[data-testid="admin-ticket-row-T-20260925-AAAA01"]').trigger('click')
@@ -67,5 +73,6 @@ describe('AdminTicketQueue', () => {
 
     expect(adminTicketsApi.getTicketDetail).toHaveBeenCalledWith('t1')
     expect(wrapper.find('[data-testid="admin-ticket-detail"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="assignee-select"]').exists()).toBe(true)
   })
 })

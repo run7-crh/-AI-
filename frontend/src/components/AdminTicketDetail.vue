@@ -1,7 +1,7 @@
 <!-- frontend/src/components/AdminTicketDetail.vue -->
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import type { TicketDetail, TicketEvent, TicketStatus } from '@/types'
+import type { TicketDetail, TicketEvent, TicketStatus, User } from '@/types'
 import {
   appendTicketEvent,
   getTicketDetail,
@@ -9,7 +9,7 @@ import {
   type AdminTicketUpdate,
 } from '@/api/adminTickets'
 
-const props = defineProps<{ ticketId: string; isAdmin?: boolean }>()
+const props = defineProps<{ ticketId: string; isAdmin?: boolean; assigneeOptions?: User[] }>()
 const emit = defineEmits<{ back: [] }>()
 
 // Frontend copy of the backend whitelist (single source of truth stays in
@@ -35,11 +35,13 @@ const detail = ref<TicketDetail | null>(null)
 const error = ref<string | null>(null)
 const busy = ref(false)
 const assigneeDraft = ref('')
+const assigneeSelected = ref('')
 const resolutionDraft = ref('')
 const eventBody = ref('')
 const eventType = ref<'public_reply' | 'internal_note'>('public_reply')
 
 const ticket = computed(() => detail.value?.ticket ?? null)
+const hasAssigneeOptions = computed(() => (props.assigneeOptions?.length ?? 0) > 0)
 
 const eventLabels: Record<string, string> = {
   created: '创建工单草稿',
@@ -87,10 +89,20 @@ async function load(): Promise<void> {
   try {
     detail.value = await getTicketDetail(props.ticketId)
     assigneeDraft.value = ticket.value?.assignee_user_id || ''
+    assigneeSelected.value = props.assigneeOptions?.some(
+      (user) => user.id === ticket.value?.assignee_user_id,
+    )
+      ? (ticket.value?.assignee_user_id ?? '')
+      : ''
     resolutionDraft.value = ticket.value?.resolution_summary || ''
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : '加载工单详情失败'
   }
+}
+
+function currentAssignee(): string | undefined {
+  const value = hasAssigneeOptions.value ? assigneeSelected.value : assigneeDraft.value
+  return value || undefined
 }
 
 async function applyUpdate(payload: AdminTicketUpdate): Promise<void> {
@@ -173,7 +185,19 @@ onMounted(load)
           </button>
         </div>
         <div class="flex flex-wrap items-center gap-2">
+          <select
+            v-if="hasAssigneeOptions"
+            v-model="assigneeSelected"
+            class="rounded border border-gray-200 px-1.5 py-1"
+            data-testid="assignee-select"
+          >
+            <option value="">选择负责人…</option>
+            <option v-for="user in assigneeOptions" :key="user.id" :value="user.id">
+              {{ user.username }}（{{ user.role }}）
+            </option>
+          </select>
           <input
+            v-else
             v-model="assigneeDraft"
             class="w-32 rounded border border-gray-200 px-2 py-1"
             placeholder="负责人 ID"
@@ -183,7 +207,7 @@ onMounted(load)
             class="rounded border border-stone-300 px-2 py-1 disabled:opacity-40"
             :disabled="busy"
             data-testid="assign-button"
-            @click="applyUpdate({ assignee_user_id: assigneeDraft || undefined })"
+            @click="applyUpdate({ assignee_user_id: currentAssignee() })"
           >
             转派
           </button>

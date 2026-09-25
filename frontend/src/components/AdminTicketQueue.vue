@@ -1,9 +1,11 @@
 <!-- frontend/src/components/AdminTicketQueue.vue -->
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import type { Ticket } from '@/types'
+import type { Ticket, User } from '@/types'
 import { listAllTickets, type AdminTicketFilters } from '@/api/adminTickets'
 import AdminTicketDetail from './AdminTicketDetail.vue'
+
+const props = defineProps<{ users?: User[] }>()
 
 const tickets = ref<Ticket[]>([])
 const loading = ref(false)
@@ -122,6 +124,12 @@ onMounted(refresh)
       </ul>
     </template>
 
-    <AdminTicketDetail v-else :ticket-id="selectedId" is-admin @back="backToQueue" />
+    <AdminTicketDetail
+      v-else
+      :ticket-id="selectedId"
+      is-admin
+      :assignee-options="props.users || []"
+      @back="backToQueue"
+    />
   </div>
 </template>

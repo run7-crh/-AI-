@@ -76,6 +76,38 @@ describe('AdminTicketDetail', () => {
     expect(disallowed.attributes('disabled')).toBeDefined()
   })
 
+  it('renders an assignee dropdown when user options are provided', async () => {
+    ;(adminTicketsApi.updateTicket as any).mockResolvedValue({ ...ticket, assignee_user_id: 'admin-9' })
+    const wrapper = mount(AdminTicketDetail, {
+      props: {
+        ticketId: 't1',
+        isAdmin: true,
+        assigneeOptions: [
+          { id: 'admin-9', username: 'brand-admin', role: 'admin', is_active: true, created_at: '' },
+          { id: 'u2', username: 'cxh', role: 'user', is_active: true, created_at: '' },
+        ],
+      },
+    })
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="assignee-select"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="assignee-input"]').exists()).toBe(false)
+    expect(wrapper.text()).toContain('brand-admin')
+
+    await wrapper.find('[data-testid="assignee-select"]').setValue('admin-9')
+    await wrapper.find('[data-testid="assign-button"]').trigger('click')
+    await flushPromises()
+    expect(adminTicketsApi.updateTicket).toHaveBeenCalledWith('t1', { assignee_user_id: 'admin-9' })
+  })
+
+  it('keeps the manual assignee input when no user options are given', async () => {
+    const wrapper = mount(AdminTicketDetail, { props: { ticketId: 't1', isAdmin: true } })
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="assignee-select"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="assignee-input"]').exists()).toBe(true)
+  })
+
   it('sends status, assignee and event updates through the admin API', async () => {
     ;(adminTicketsApi.updateTicket as any).mockResolvedValue({ ...ticket, status: 'assigned' })
     ;(adminTicketsApi.appendTicketEvent as any).mockResolvedValue(detail())
