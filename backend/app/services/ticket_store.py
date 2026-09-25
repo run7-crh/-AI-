@@ -220,14 +220,16 @@ class TicketStore:
         actor_id: str | None = None,
         metadata: dict | None = None,
     ) -> dict:
-        """Update whitelisted admin fields and audit the change atomically.
+        """Update whitelisted fields and audit the change atomically.
 
         ``fields`` keys must come from the service layer's fixed whitelist
-        (priority/assignee_user_id/resolution_summary); status changes always
+        (priority/assignee_user_id/resolution_summary for admins, plus
+        title/problem_summary for owner draft edits); status changes always
         go through :meth:`apply_transition` instead.
         """
         if not fields:
             return await self.get_ticket(ticket_id)
+        allowed = {"priority", "assignee_user_id", "resolution_summary", "title", "problem_summary"}
         columns = ["updated_at"]
         values: list = [self._now()]
         for key, value in fields.items():

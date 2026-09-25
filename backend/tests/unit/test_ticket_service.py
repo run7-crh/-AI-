@@ -351,3 +351,65 @@ async def test_create_draft_compensates_when_promotion_fails(tmp_path):
         )
 
     assert await ticket_store.get_by_user_conversation("user-1", conv_id) is None
+
+
+@pytest.mark.asyncio
+async def test_draft_summary_strips_markdown_and_leads_with_question(tmp_path):
+    service, _, conversation_store, _ = await _make_service(tmp_path)
+    conv_id = await conversation_store.create_conversation(user_id="user-1")
+    await conversation_store.add_message(
+        conv_id, "user", "无人机机翼被砸断了可以换新吗？"
+    )
+    await conversation_store.add_message(
+        conv_id,
+        "assistant",
+        "## 1. 立即安全处置\n\n- 请先确保设备**完全断电**，并`取出电池`\n"
+        "- 相关风险包括[微小裂纹](https://example.com)逐渐扩展\n\n"
+        "### 2. 维修建议\n\n请联系官方售后检测机臂结构。",
+    )
+
+    ticket = await service.create_draft_from_conversation("user-1", conv_id)
+
+    summary = ticket["problem_summary"]
+    assert summary.startswith("用户问题：无人机机翼被砸断了可以换新吗？")
+    assert summary.startswith("用户问题：") and "初步建议：" in summary
+    for raw_markdown in ("##", "**", "`", "- 请先", "](", "https://"):
+        assert raw_markdown not in summary
+    assert "完全断电" in summary
+    assert "取出电池" in summary
+
+
+@pytest.mark.asyncio
+async def test_update_draft_edits_title_and_summary(tmp_path):
+    service, _, conversation_store, _ = await _make_service(tmp_path)
+    conv_id = await _seed_conversation(conversation_store)
+    ticket = await service.create_draft_from_conversation("user-1", conv_id)
+
+    updated = await service.update_draft(
+        ticket["id"],
+        user_id="user-1",
+        title="机翼断裂更换咨询",
+        summary="仓库中被砸断机翼，想了解更换流程与费用。",
+    )
+
+    assert updated["title"] == "机翼断裂更换咨询"
+    assert updated["problem_summary"] == "仓库中被砸断机翼，想了解更换流程与费用。"
+
+
+@pytest.mark.asyncio
+async def test_update_draft_locked_after_submit_and_rejects_foreign_user(tmp_path):
+    service, _, conversation_store, _ = await _make_service(tmp_path)
+    conv_id = await _seed_conversation(conversation_store)
+    ticket = await service.create_draft_from_conversation("user-1", conv_id)
+
+    with pytest.raises(LookupError):
+        await service.update_draft(
+            ticket["id"], user_id="user-2", title="冒充者编辑"
+        )
+    await service.transition(
+        ticket["id"], actor_type="user", actor_id="user-1", target_status="submitted"
+    )
+    with pytest.raises(ValueError, match="ticket_not_editable"):
+        await service.update_draft(
+            ticket["id"], user_id="user-1", title="迟到的编辑"
+        )

@@ -10,6 +10,7 @@ audit event in the same transaction as the ticket update.
 from __future__ import annotations
 
 import json
+import re
 from datetime import timedelta
 from typing import Optional
 
@@ -46,6 +47,9 @@ _TRANSITION_EVENT_TYPES = {
 
 _TITLE_MAX_CHARS = 60
 _SUMMARY_MAX_CHARS = 800
+_DRAFT_TITLE_MAX_CHARS = 100
+_DRAFT_SUMMARY_MAX_CHARS = 1000
+_ANSWER_DIGEST_CHARS = 240
 _EVIDENCE_RETENTION_DAYS = 30
 
 
@@ -58,6 +62,24 @@ def _truncate(text: str, limit: int) -> str:
     if len(cleaned) <= limit:
         return cleaned
     return cleaned[: limit - 1].rstrip() + "…"
+
+
+def _strip_markdown(text: str) -> str:
+    """Reduce a raw markdown answer to plain prose for the ticket snapshot.
+
+    Answer text is LLM output full of ``##``/``**``/list markers that read as
+    garbage in a ticket summary; fenced code blocks carry no meaning for
+    human triage either and are elided outright.
+    """
+    cleaned = str(text or "")
+    cleaned = re.sub(r"```.*?```", "（代码块略）", cleaned, flags=re.DOTALL)
+    cleaned = re.sub(r"`([^`]*)`", r"\1", cleaned)
+    cleaned = re.sub(r"!?\[([^\]]*)\]\([^)]*\)", r"\1", cleaned)
+    cleaned = re.sub(r"^#{1,6}\s*", "", cleaned, flags=re.MULTILINE)
+    cleaned = re.sub(r"\*\*([^*]*)\*\*", r"\1", cleaned)
+    cleaned = re.sub(r"\*([^*\n]+)\*", r"\1", cleaned)
+    cleaned = re.sub(r"^\s*[-*+]\s+", "", cleaned, flags=re.MULTILINE)
+    return cleaned
 
 
 class TicketService:
@@ -247,9 +269,9 @@ class TicketService:
         summary_parts = []
         if question:
             summary_parts.append(f"用户问题：{question}")
-        answer = _one_line(str((last_assistant or {}).get("content") or ""))
+        answer = _one_line(_strip_markdown(str((last_assistant or {}).get("content") or "")))
         if answer:
-            summary_parts.append(f"最新回复：{_truncate(answer, 400)}")
+            summary_parts.append(f"初步建议：{_truncate(answer, _ANSWER_DIGEST_CHARS)}")
         problem_summary = _truncate("\n".join(summary_parts) or "会话暂无消息内容。", _SUMMARY_MAX_CHARS)
 
         message_fields = cls._extract_fields(messages)
@@ -284,6 +306,45 @@ class TicketService:
         }
 
     # ------------------------------------------------------------- transitions
+
+    async def update_draft(
+        self,
+        ticket_id: str,
+        *,
+        user_id: str,
+        title: Optional[str] = None,
+        summary: Optional[str] = None,
+    ) -> dict:
+        """Edit the title/description of an unsubmitted draft.
+
+        Only the owning user may edit, only while the ticket is still a
+        draft. Safety-derived fields (safety_level, escalation_reason,
+        device/fault classification) are never accepted here — they stay
+        server-side judgements.
+        """
+        ticket = await self._ticket_store.get_ticket(ticket_id, user_id=user_id)
+        if ticket is None:
+            raise LookupError("ticket_not_found")
+        if ticket["status"] != "draft":
+            raise ValueError("ticket_not_editable")
+        fields: dict = {}
+        if title is not None:
+            cleaned_title = _truncate(_one_line(title), _DRAFT_TITLE_MAX_CHARS)
+            if cleaned_title:
+                fields["title"] = cleaned_title
+        if summary is not None:
+            cleaned_summary = summary.strip()[:_DRAFT_SUMMARY_MAX_CHARS]
+            if cleaned_summary:
+                fields["problem_summary"] = cleaned_summary
+        if not fields:
+            raise ValueError("ticket_draft_no_changes")
+        return await self._ticket_store.update_ticket_fields(
+            ticket_id,
+            fields,
+            actor_type="user",
+            actor_id=user_id,
+            metadata={"changed": sorted(fields)},
+        )
 
     async def add_public_message(
         self,

@@ -8,6 +8,7 @@ from app.api.dependencies import get_current_user
 from app.models.ticket import (
     TicketCreateFromConversation,
     TicketDetailResponse,
+    TicketDraftUpdate,
     TicketEventResponse,
     TicketEvidenceResponse,
     TicketMessageCreate,
@@ -96,6 +97,27 @@ async def list_my_tickets(
     user=Depends(get_current_user),
 ):
     return [ticket_response(record) for record in await store.list_tickets(user_id=user.id)]
+
+
+@router.patch("/{ticket_id}/draft", response_model=TicketResponse)
+async def update_ticket_draft(
+    ticket_id: str,
+    payload: TicketDraftUpdate,
+    service: TicketService = Depends(get_service),
+    user=Depends(get_current_user),
+):
+    """Edit title/description of an owned draft; locked once submitted."""
+    await _require_owned_ticket(ticket_id, user)
+    try:
+        record = await service.update_draft(
+            ticket_id,
+            user_id=user.id,
+            title=payload.title,
+            summary=payload.problem_summary,
+        )
+    except (LookupError, ValueError) as exc:
+        raise _map_service_errors(exc) from exc
+    return ticket_response(record)
 
 
 @router.get("/{ticket_id}", response_model=TicketDetailResponse)

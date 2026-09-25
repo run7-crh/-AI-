@@ -322,3 +322,50 @@ async def test_admin_ticket_operations_produce_events():
     finally:
         await client.aclose()
         await manager.__aexit__(None, None, None)
+
+
+@pytest.mark.asyncio
+async def test_draft_editing_via_patch_endpoint():
+    manager, client = await _client()
+    try:
+        user = await register_and_login(client, username="ticket-owner5", password="Owner-pass-1")
+        conv_id = await _seed_conversation(user["id"])
+        created = await client.post(
+            "/api/tickets/from-conversation", json={"conversation_id": conv_id}
+        )
+        ticket_id = created.json()["id"]
+
+        edited = await client.patch(
+            f"/api/tickets/{ticket_id}/draft",
+            json={"title": "机翼断裂更换咨询", "problem_summary": "仓库中被砸断机翼，咨询更换流程。"},
+        )
+        assert edited.status_code == 200, edited.text
+        assert edited.json()["title"] == "机翼断裂更换咨询"
+        assert edited.json()["problem_summary"] == "仓库中被砸断机翼，咨询更换流程。"
+
+        empty = await client.patch(
+            f"/api/tickets/{ticket_id}/draft", json={}
+        )
+        assert empty.status_code == 422
+
+        stranger_manager, stranger_client = await _client()
+        try:
+            await register_and_login(
+                stranger_client, username="ticket-stranger5", password="Stranger-pass-1"
+            )
+            cross = await stranger_client.patch(
+                f"/api/tickets/{ticket_id}/draft", json={"title": "越权编辑"}
+            )
+            assert cross.status_code == 404
+        finally:
+            await stranger_client.aclose()
+            await stranger_manager.__aexit__(None, None, None)
+
+        await client.post(f"/api/tickets/{ticket_id}/submit")
+        locked = await client.patch(
+            f"/api/tickets/{ticket_id}/draft", json={"title": "提交后编辑"}
+        )
+        assert locked.status_code == 422
+    finally:
+        await client.aclose()
+        await manager.__aexit__(None, None, None)

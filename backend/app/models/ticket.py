@@ -97,6 +97,17 @@ class TicketAdminEventCreate(BaseModel):
     body: str = Field(min_length=1, max_length=4000)
 
 
+class TicketDraftUpdate(BaseModel):
+    """Owner edit of an unsubmitted draft (title/description only).
+
+    Safety-derived fields are intentionally absent: they stay server-side
+    judgements and cannot be overridden by the client.
+    """
+
+    title: str | None = Field(default=None, max_length=100)
+    problem_summary: str | None = Field(default=None, max_length=1000)
+
+
 class TicketDetailResponse(BaseModel):
     ticket: TicketResponse
     events: list[TicketEventResponse] = Field(default_factory=list)
