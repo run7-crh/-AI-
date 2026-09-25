@@ -45,15 +45,15 @@ def get_store() -> TicketStore:
     return _store
 
 
-def _ticket_response(record: dict) -> TicketResponse:
+def ticket_response(record: dict) -> TicketResponse:
     return TicketResponse(**record)
 
 
-def _event_response(record: dict) -> TicketEventResponse:
+def event_response(record: dict) -> TicketEventResponse:
     return TicketEventResponse(**record)
 
 
-def _evidence_response(record: dict) -> TicketEvidenceResponse:
+def evidence_response(record: dict) -> TicketEvidenceResponse:
     return TicketEvidenceResponse(**record)
 
 
@@ -87,7 +87,7 @@ async def create_ticket_from_conversation(
         )
     except (LookupError, ValueError) as exc:
         raise _map_service_errors(exc) from exc
-    return _ticket_response(record)
+    return ticket_response(record)
 
 
 @router.get("", response_model=list[TicketResponse])
@@ -95,7 +95,7 @@ async def list_my_tickets(
     store: TicketStore = Depends(get_store),
     user=Depends(get_current_user),
 ):
-    return [_ticket_response(record) for record in await store.list_tickets(user_id=user.id)]
+    return [ticket_response(record) for record in await store.list_tickets(user_id=user.id)]
 
 
 @router.get("/{ticket_id}", response_model=TicketDetailResponse)
@@ -106,13 +106,13 @@ async def get_my_ticket(
 ):
     record = await _require_owned_ticket(ticket_id, user)
     events = [
-        _event_response(event)
+        event_response(event)
         for event in await store.list_events(ticket_id)
         if event.get("event_type") not in _INTERNAL_EVENT_TYPES
     ]
-    evidence = [_evidence_response(item) for item in await store.list_evidence(ticket_id)]
+    evidence = [evidence_response(item) for item in await store.list_evidence(ticket_id)]
     return TicketDetailResponse(
-        ticket=_ticket_response(record),
+        ticket=ticket_response(record),
         events=events,
         evidence=evidence,
     )
@@ -134,7 +134,7 @@ async def submit_ticket(
         )
     except (LookupError, ValueError) as exc:
         raise _map_service_errors(exc) from exc
-    return _ticket_response(record)
+    return ticket_response(record)
 
 
 @router.post("/{ticket_id}/messages", response_model=TicketResponse)
@@ -154,7 +154,7 @@ async def add_ticket_message(
         )
     except (LookupError, ValueError) as exc:
         raise _map_service_errors(exc) from exc
-    return _ticket_response(record)
+    return ticket_response(record)
 
 
 @router.post("/{ticket_id}/confirm-resolution", response_model=TicketResponse)
@@ -173,7 +173,7 @@ async def confirm_resolution(
         )
     except (LookupError, ValueError) as exc:
         raise _map_service_errors(exc) from exc
-    return _ticket_response(record)
+    return ticket_response(record)
 
 
 @router.post("/{ticket_id}/reopen", response_model=TicketResponse)
@@ -192,4 +192,4 @@ async def reopen_ticket(
         )
     except (LookupError, ValueError) as exc:
         raise _map_service_errors(exc) from exc
-    return _ticket_response(record)
+    return ticket_response(record)

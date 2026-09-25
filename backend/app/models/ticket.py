@@ -83,6 +83,20 @@ class TicketMessageCreate(BaseModel):
     body: str = Field(min_length=1, max_length=4000)
 
 
+class TicketAdminUpdate(BaseModel):
+    """Admin PATCH payload. Only these four fields are updatable."""
+
+    status: TicketStatus | None = None
+    priority: TicketPriority | None = None
+    assignee_user_id: str | None = None
+    resolution_summary: str | None = None
+
+
+class TicketAdminEventCreate(BaseModel):
+    event_type: Literal["public_reply", "internal_note"]
+    body: str = Field(min_length=1, max_length=4000)
+
+
 class TicketDetailResponse(BaseModel):
     ticket: TicketResponse
     events: list[TicketEventResponse] = Field(default_factory=list)

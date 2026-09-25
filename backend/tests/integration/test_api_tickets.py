@@ -1,9 +1,8 @@
-"""User ticket API integration coverage.
+"""Ticket API integration coverage.
 
-Exercises the full draft → submit → admin handling → confirm/reopen loop over
-HTTP. Until Task 5 exposes the admin ticket API, the admin side of the state
-machine is driven through the service layer directly (same code path the
-admin routes will call).
+Covers the user workflow (draft → submit → confirm/reopen) and the admin
+queue (filters, assignment, public replies, internal notes, closure) over
+HTTP.
 """
 
 import pytest
@@ -13,7 +12,7 @@ from asgi_lifespan import LifespanManager
 from app.api import conversations as conversations_api
 from app.main import app, get_ticket_store
 from app.services.ticket_service import TicketService
-from tests.integration.conftest import register_and_login
+from tests.integration.conftest import login_admin, register_and_login
 
 
 async def _client():
@@ -176,6 +175,150 @@ async def test_ticket_boundaries_and_internal_note_visibility():
         event_types = [event["event_type"] for event in detail.json()["events"]]
         assert "internal_note" not in event_types
         assert all("硬件故障" not in (event.get("body") or "") for event in detail.json()["events"])
+    finally:
+        await client.aclose()
+        await manager.__aexit__(None, None, None)
+
+
+@pytest.mark.asyncio
+async def test_admin_ticket_api_requires_admin_and_supports_filters():
+    manager, client = await _client()
+    try:
+        user = await register_and_login(client, username="ticket-owner3", password="Owner-pass-1")
+        conv_id = await _seed_conversation(user["id"], high_risk=True)
+        created = await client.post(
+            "/api/tickets/from-conversation", json={"conversation_id": conv_id}
+        )
+        ticket_id = created.json()["id"]
+        await client.post(f"/api/tickets/{ticket_id}/submit")
+
+        admin_manager, admin_client = await _client()
+        try:
+            await login_admin(admin_client)
+            forbidden = await client.get("/api/admin/tickets")
+            assert forbidden.status_code == 403
+
+            patch = await admin_client.patch(
+                f"/api/admin/tickets/{ticket_id}",
+                json={"status": "assigned", "assignee_user_id": "test-admin"},
+            )
+            assert patch.status_code == 200, patch.text
+            assert patch.json()["status"] == "assigned"
+            assert patch.json()["assignee_user_id"] == "test-admin"
+
+            by_status = await admin_client.get("/api/admin/tickets", params={"status": "assigned"})
+            assert [item["id"] for item in by_status.json()] == [ticket_id]
+            by_assignee = await admin_client.get(
+                "/api/admin/tickets", params={"assignee_user_id": "test-admin"}
+            )
+            assert [item["id"] for item in by_assignee.json()] == [ticket_id]
+            by_safety = await admin_client.get(
+                "/api/admin/tickets", params={"safety_level": "high"}
+            )
+            assert [item["id"] for item in by_safety.json()] == [ticket_id]
+            by_priority = await admin_client.get(
+                "/api/admin/tickets", params={"priority": "urgent"}
+            )
+            assert by_priority.json() == []
+        finally:
+            await admin_client.aclose()
+            await admin_manager.__aexit__(None, None, None)
+    finally:
+        await client.aclose()
+        await manager.__aexit__(None, None, None)
+
+
+@pytest.mark.asyncio
+async def test_admin_ticket_operations_produce_events():
+    manager, client = await _client()
+    try:
+        user = await register_and_login(client, username="ticket-owner4", password="Owner-pass-1")
+        conv_id = await _seed_conversation(user["id"])
+        created = await client.post(
+            "/api/tickets/from-conversation", json={"conversation_id": conv_id}
+        )
+        ticket_id = created.json()["id"]
+        await client.post(f"/api/tickets/{ticket_id}/submit")
+
+        admin_manager, admin_client = await _client()
+        try:
+            await login_admin(admin_client)
+
+            patched = await admin_client.patch(
+                f"/api/admin/tickets/{ticket_id}",
+                json={"status": "assigned", "assignee_user_id": "test-admin"},
+            )
+            assert patched.status_code == 200
+            assert (
+                await admin_client.patch(
+                    f"/api/admin/tickets/{ticket_id}", json={"status": "in_progress"}
+                )
+            ).status_code == 200
+
+            note = await admin_client.post(
+                f"/api/admin/tickets/{ticket_id}/events",
+                json={"event_type": "internal_note", "body": "内部判断：疑似固件问题。"},
+            )
+            assert note.status_code == 200
+            reply = await admin_client.post(
+                f"/api/admin/tickets/{ticket_id}/events",
+                json={"event_type": "public_reply", "body": "请先升级固件到最新版本。"},
+            )
+            assert reply.status_code == 200
+
+            for status in ("waiting_user", "in_progress"):
+                step = await admin_client.patch(
+                    f"/api/admin/tickets/{ticket_id}", json={"status": status}
+                )
+                assert step.status_code == 200
+
+            resolved = await admin_client.patch(
+                f"/api/admin/tickets/{ticket_id}",
+                json={
+                    "status": "resolved_pending_confirm",
+                    "resolution_summary": "已升级固件并重新校准指南针。",
+                },
+            )
+            assert resolved.status_code == 200
+            assert resolved.json()["resolution_summary"] == "已升级固件并重新校准指南针。"
+
+            reopened = await admin_client.patch(
+                f"/api/admin/tickets/{ticket_id}", json={"status": "reopened"}
+            )
+            assert reopened.status_code == 200
+            assert reopened.json()["closed_at"] is None
+
+            for status in ("assigned", "in_progress", "resolved_pending_confirm"):
+                step = await admin_client.patch(
+                    f"/api/admin/tickets/{ticket_id}", json={"status": status}
+                )
+                assert step.status_code == 200
+
+            closed = await admin_client.patch(
+                f"/api/admin/tickets/{ticket_id}", json={"status": "closed"}
+            )
+            assert closed.status_code == 200, closed.text
+            assert closed.json()["status"] == "closed"
+
+            admin_detail = await admin_client.get(f"/api/admin/tickets/{ticket_id}")
+            admin_events = admin_detail.json()["events"]
+            event_types = [event["event_type"] for event in admin_events]
+            assert "internal_note" in event_types
+            assert event_types.count("assigned") == 2
+            assert event_types.count("reopened") == 1
+            assert event_types.count("admin_closed") == 1
+            assert any(
+                event["event_type"] == "updated" and "assignee_user_id" in (event.get("metadata") or {}).get("changed", [])
+                for event in admin_events
+            )
+        finally:
+            await admin_client.aclose()
+            await admin_manager.__aexit__(None, None, None)
+
+        user_detail = await client.get(f"/api/tickets/{ticket_id}")
+        user_event_types = [event["event_type"] for event in user_detail.json()["events"]]
+        assert "internal_note" not in user_event_types
+        assert "public_reply" in user_event_types
     finally:
         await client.aclose()
         await manager.__aexit__(None, None, None)

@@ -22,6 +22,7 @@ from app.api import health, conversations, attachments, auth, admin
 from app.api.dependencies import set_auth_store
 # 导入工单路由（售后工单闭环）
 from app.api import tickets
+from app.api import admin_tickets
 # 导入索引管理路由（起别名避免与内置 index 冲突）
 from app.api import index as index_api
 # 导入反馈路由
@@ -162,15 +163,14 @@ async def lifespan(app: FastAPI):
     logger.info("QueryLogStore 初始化完成")  # 记录日志
 
     # 工单业务服务：汇聚工单存储、会话快照、查询日志与附件证据
-    tickets.set_service(
-        TicketService(
-            ticket_store=_ticket_store,
-            conversation_store=_store,
-            query_log_store=_query_log_store,
-            attachment_store=_attachment_store,
-        ),
-        _ticket_store,
+    _ticket_service = TicketService(
+        ticket_store=_ticket_store,
+        conversation_store=_store,
+        query_log_store=_query_log_store,
+        attachment_store=_attachment_store,
     )
+    tickets.set_service(_ticket_service, _ticket_store)
+    admin_tickets.set_service(_ticket_service, _ticket_store)
 
     auth_store = AuthStore(db_path)
     await auth_store.init(
@@ -240,6 +240,7 @@ app.include_router(auth.router)
 app.include_router(conversations.router) # 挂载会话路由
 app.include_router(attachments.router)   # 挂载临时附件路由
 app.include_router(tickets.router)       # 挂载售后工单路由
+app.include_router(admin_tickets.router) # 挂载管理员工单路由
 app.include_router(feedback.router)      # 挂载反馈路由
 
 # chat 模块依赖 get_store，必须在 get_store 定义后导入

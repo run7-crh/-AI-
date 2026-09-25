@@ -177,18 +177,85 @@ class TicketStore:
             return cursor.rowcount > 0
 
     @_db_retry
-    async def list_tickets(self, user_id: str | None = None) -> list[dict]:
+    async def list_tickets(
+        self,
+        user_id: str | None = None,
+        *,
+        status: str | None = None,
+        priority: str | None = None,
+        safety_level: str | None = None,
+        assignee_user_id: str | None = None,
+    ) -> list[dict]:
         async with aiosqlite.connect(self.db_path) as db:
             await _configure_db(db)
             db.row_factory = aiosqlite.Row
-            if user_id is None:
-                cursor = await db.execute("SELECT * FROM tickets ORDER BY updated_at DESC, rowid DESC")
-            else:
-                cursor = await db.execute(
-                    "SELECT * FROM tickets WHERE user_id = ? ORDER BY updated_at DESC, rowid DESC",
-                    (user_id,),
-                )
+            query = "SELECT * FROM tickets"
+            conditions: list[str] = []
+            params: list[str] = []
+            if user_id is not None:
+                conditions.append("user_id = ?")
+                params.append(user_id)
+            for column, value in (
+                ("status", status),
+                ("priority", priority),
+                ("safety_level", safety_level),
+                ("assignee_user_id", assignee_user_id),
+            ):
+                if value is not None:
+                    conditions.append(f"{column} = ?")
+                    params.append(value)
+            if conditions:
+                query += " WHERE " + " AND ".join(conditions)
+            query += " ORDER BY updated_at DESC, rowid DESC"
+            cursor = await db.execute(query, params)
             return [dict(row) for row in await cursor.fetchall()]
+
+    @_db_retry
+    async def update_ticket_fields(
+        self,
+        ticket_id: str,
+        fields: dict,
+        *,
+        actor_type: str = "admin",
+        actor_id: str | None = None,
+        metadata: dict | None = None,
+    ) -> dict:
+        """Update whitelisted admin fields and audit the change atomically.
+
+        ``fields`` keys must come from the service layer's fixed whitelist
+        (priority/assignee_user_id/resolution_summary); status changes always
+        go through :meth:`apply_transition` instead.
+        """
+        if not fields:
+            return await self.get_ticket(ticket_id)
+        columns = ["updated_at"]
+        values: list = [self._now()]
+        for key, value in fields.items():
+            columns.append(key)
+            values.append(value)
+        set_sql = ", ".join(f"{column} = ?" for column in columns)
+        async with aiosqlite.connect(self.db_path) as db:
+            await _configure_db(db)
+            cursor = await db.execute(
+                f"UPDATE tickets SET {set_sql} WHERE id = ?",
+                (*values, ticket_id),
+            )
+            if cursor.rowcount == 0:
+                raise LookupError("ticket_not_found")
+            await db.execute(
+                """INSERT INTO ticket_events
+                   (id, ticket_id, actor_type, actor_id, event_type, from_status,
+                    to_status, body, metadata_json, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    str(uuid4()), ticket_id, actor_type, actor_id, "updated",
+                    None, None, None,
+                    json.dumps(metadata or {}, ensure_ascii=False),
+                    self._now(),
+                ),
+            )
+            await db.commit()
+            return await self._get_by_id(db, ticket_id)
 
     @_db_retry
     async def append_event(

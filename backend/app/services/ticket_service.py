@@ -311,6 +311,69 @@ class TicketService:
         )
         return await self._ticket_store.get_ticket(ticket_id)
 
+    async def add_internal_note(
+        self,
+        ticket_id: str,
+        *,
+        actor_id: Optional[str] = None,
+        body: str,
+    ) -> dict:
+        """Append an admin-only internal note (never shown to the user)."""
+        ticket = await self._ticket_store.get_ticket(ticket_id)
+        if ticket is None:
+            raise LookupError("ticket_not_found")
+        await self._ticket_store.append_event(
+            ticket_id=ticket_id,
+            actor_type="admin",
+            actor_id=actor_id,
+            event_type="internal_note",
+            from_status=None,
+            to_status=None,
+            body=body,
+            metadata={},
+        )
+        return await self._ticket_store.get_ticket(ticket_id)
+
+    async def admin_update(
+        self,
+        ticket_id: str,
+        *,
+        actor_id: Optional[str] = None,
+        status: Optional[str] = None,
+        priority: Optional[str] = None,
+        assignee_user_id: Optional[str] = None,
+        resolution_summary: Optional[str] = None,
+    ) -> dict:
+        """Apply an admin PATCH: status via the state machine, fields directly."""
+        ticket = await self._ticket_store.get_ticket(ticket_id)
+        if ticket is None:
+            raise LookupError("ticket_not_found")
+        fields = {
+            key: value
+            for key, value in (
+                ("priority", priority),
+                ("assignee_user_id", assignee_user_id),
+                ("resolution_summary", resolution_summary),
+            )
+            if value is not None and value != ticket.get(key)
+        }
+        if status is not None and status != ticket["status"]:
+            ticket = await self.transition(
+                ticket_id,
+                actor_type="admin",
+                actor_id=actor_id,
+                target_status=status,
+            )
+        if fields:
+            ticket = await self._ticket_store.update_ticket_fields(
+                ticket_id,
+                fields,
+                actor_type="admin",
+                actor_id=actor_id,
+                metadata={"changed": sorted(fields)},
+            )
+        return ticket
+
     async def transition(
         self,
         ticket_id: str,
