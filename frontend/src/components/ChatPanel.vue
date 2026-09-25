@@ -5,6 +5,7 @@ import { useChatStore } from '@/stores/chat'
 import AppHeader from './AppHeader.vue'
 import MessageList from './MessageList.vue'
 import InputBox from './InputBox.vue'
+import ConversationTicketPanel from './ConversationTicketPanel.vue'
 import { AlertCircle, X, RotateCcw } from 'lucide-vue-next'
 
 const store = useChatStore()
@@ -95,6 +96,8 @@ onUnmounted(() => {
     </div>
 
     <MessageList />
+    <!-- 常驻建单入口：任何会话都可主动生成售后工单（服务端幂等，已有工单会原样返回） -->
+    <ConversationTicketPanel :conversation-id="store.currentConversationId" />
     <InputBox ref="inputBoxRef" />
   </div>
 </template>
