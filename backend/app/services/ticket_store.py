@@ -210,6 +210,54 @@ class TicketStore:
         return event_id
 
     @_db_retry
+    async def apply_transition(
+        self,
+        ticket_id: str,
+        *,
+        from_status: str,
+        to_status: str,
+        fields: dict | None = None,
+        event: dict | None = None,
+    ) -> dict:
+        """Guarded status update plus audit event in one SQLite transaction.
+
+        The UPDATE carries a ``status = from_status`` guard so concurrent
+        transitions cannot double-apply: only one wins, the loser raises
+        ``ticket_status_conflict``. Column names in ``fields`` must come from
+        the service layer's fixed whitelist, never from user input.
+        """
+        columns = ["status", "updated_at"]
+        values: list = [to_status, self._now()]
+        for key, value in (fields or {}).items():
+            columns.append(key)
+            values.append(value)
+        set_sql = ", ".join(f"{column} = ?" for column in columns)
+        async with aiosqlite.connect(self.db_path) as db:
+            await _configure_db(db)
+            cursor = await db.execute(
+                f"UPDATE tickets SET {set_sql} WHERE id = ? AND status = ?",
+                (*values, ticket_id, from_status),
+            )
+            if cursor.rowcount == 0:
+                raise ValueError("ticket_status_conflict")
+            payload = event or {}
+            await db.execute(
+                """INSERT INTO ticket_events
+                   (id, ticket_id, actor_type, actor_id, event_type, from_status,
+                    to_status, body, metadata_json, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    str(uuid4()), ticket_id, payload.get("actor_type", "system"),
+                    payload.get("actor_id"), payload.get("event_type", "status_changed"),
+                    from_status, to_status, payload.get("body"),
+                    json.dumps(payload.get("metadata") or {}, ensure_ascii=False),
+                    self._now(),
+                ),
+            )
+            await db.commit()
+            return await self._get_by_id(db, ticket_id)
+
+    @_db_retry
     async def list_events(self, ticket_id: str) -> list[dict]:
         async with aiosqlite.connect(self.db_path) as db:
             await _configure_db(db)
