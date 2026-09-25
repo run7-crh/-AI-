@@ -20,6 +20,8 @@ from slowapi.errors import RateLimitExceeded
 # 导入健康检查与会话路由（app.api 包内模块）
 from app.api import health, conversations, attachments, auth, admin
 from app.api.dependencies import set_auth_store
+# 导入工单路由（售后工单闭环）
+from app.api import tickets
 # 导入索引管理路由（起别名避免与内置 index 冲突）
 from app.api import index as index_api
 # 导入反馈路由
@@ -39,6 +41,7 @@ from app.services.fault_progress_service import FaultProgressStore
 from app.services.attachment_store import AttachmentStore, LocalAttachmentStorage
 from app.services.auth_store import AuthStore
 from app.services.ticket_store import TicketStore
+from app.services.ticket_service import TicketService
 # 导入全局配置
 from app.config import settings
 
@@ -158,6 +161,17 @@ async def lifespan(app: FastAPI):
     await _query_log_store.init()        # 初始化表
     logger.info("QueryLogStore 初始化完成")  # 记录日志
 
+    # 工单业务服务：汇聚工单存储、会话快照、查询日志与附件证据
+    tickets.set_service(
+        TicketService(
+            ticket_store=_ticket_store,
+            conversation_store=_store,
+            query_log_store=_query_log_store,
+            attachment_store=_attachment_store,
+        ),
+        _ticket_store,
+    )
+
     auth_store = AuthStore(db_path)
     await auth_store.init(
         admin_username=settings.AUTH_ADMIN_USERNAME,
@@ -225,6 +239,7 @@ app.include_router(health.router)        # 挂载健康检查路由
 app.include_router(auth.router)
 app.include_router(conversations.router) # 挂载会话路由
 app.include_router(attachments.router)   # 挂载临时附件路由
+app.include_router(tickets.router)       # 挂载售后工单路由
 app.include_router(feedback.router)      # 挂载反馈路由
 
 # chat 模块依赖 get_store，必须在 get_store 定义后导入

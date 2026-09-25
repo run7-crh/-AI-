@@ -1,0 +1,181 @@
+"""User ticket API integration coverage.
+
+Exercises the full draft → submit → admin handling → confirm/reopen loop over
+HTTP. Until Task 5 exposes the admin ticket API, the admin side of the state
+machine is driven through the service layer directly (same code path the
+admin routes will call).
+"""
+
+import pytest
+from httpx import ASGITransport, AsyncClient
+from asgi_lifespan import LifespanManager
+
+from app.api import conversations as conversations_api
+from app.main import app, get_ticket_store
+from app.services.ticket_service import TicketService
+from tests.integration.conftest import register_and_login
+
+
+async def _client():
+    manager = LifespanManager(app)
+    await manager.__aenter__()
+    client = AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
+    return manager, client
+
+
+async def _seed_conversation(user_id: str, *, high_risk: bool = False) -> str:
+    store = conversations_api.get_store()
+    conv_id = await store.create_conversation(user_id=user_id)
+    await store.add_message(conv_id, "user", "Mini 4 Pro 罗盘异常无法校准，怎么处理？")
+    await store.add_message(
+        conv_id,
+        "assistant",
+        "请远离干扰源后重新校准罗盘；若仍异常请立即降落并联系官方售后。",
+        safety_level="high" if high_risk else "none",
+        safety_situation="flying" if high_risk else None,
+        escalation_required=True if high_risk else None,
+        metadata_constraints={
+            "product_model": "mini_4_pro",
+            "component": "compass",
+            "fault_type": "compass_abnormal",
+        },
+    )
+    return conv_id
+
+
+async def _advance_admin_flow(ticket_id: str, targets) -> None:
+    """Drive the admin side of the state machine (Task 5 will expose HTTP)."""
+    service = TicketService(
+        ticket_store=get_ticket_store(),
+        conversation_store=conversations_api.get_store(),
+    )
+    for target in targets:
+        await service.transition(ticket_id, actor_type="admin", target_status=target)
+
+
+@pytest.mark.asyncio
+async def test_user_ticket_flow_from_draft_to_confirm_and_reopen():
+    manager, client = await _client()
+    try:
+        user = await register_and_login(client, username="ticket-owner", password="Owner-pass-1")
+        conv_id = await _seed_conversation(user["id"], high_risk=True)
+
+        anonymous_client = AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
+        try:
+            anonymous = await anonymous_client.post(
+                "/api/tickets/from-conversation", json={"conversation_id": conv_id}
+            )
+        finally:
+            await anonymous_client.aclose()
+        assert anonymous.status_code == 401
+
+        created = await client.post(
+            "/api/tickets/from-conversation", json={"conversation_id": conv_id}
+        )
+        assert created.status_code == 201, created.text
+        ticket = created.json()
+        assert ticket["status"] == "draft"
+        assert ticket["safety_level"] == "high"
+        assert ticket["escalation_reason"]
+        assert ticket["device_model"] == "mini_4_pro"
+        assert ticket["fault_category"] == "compass_abnormal"
+
+        again = await client.post(
+            "/api/tickets/from-conversation", json={"conversation_id": conv_id}
+        )
+        assert again.status_code == 201
+        assert again.json()["id"] == ticket["id"]
+
+        listed = await client.get("/api/tickets")
+        assert listed.status_code == 200
+        assert [item["id"] for item in listed.json()] == [ticket["id"]]
+
+        detail = await client.get(f"/api/tickets/{ticket['id']}")
+        assert detail.status_code == 200
+        body = detail.json()
+        assert body["ticket"]["id"] == ticket["id"]
+        assert any(event["event_type"] == "created" for event in body["events"])
+
+        submitted = await client.post(f"/api/tickets/{ticket['id']}/submit")
+        assert submitted.status_code == 200
+        assert submitted.json()["status"] == "submitted"
+
+        message = await client.post(
+            f"/api/tickets/{ticket['id']}/messages",
+            json={"body": "补充：已按步骤重新校准，问题依旧。"},
+        )
+        assert message.status_code == 200
+
+        await _advance_admin_flow(
+            ticket["id"], ["assigned", "in_progress", "resolved_pending_confirm"]
+        )
+        resolved = await client.get(f"/api/tickets/{ticket['id']}")
+        assert resolved.json()["ticket"]["status"] == "resolved_pending_confirm"
+
+        reopened = await client.post(f"/api/tickets/{ticket['id']}/reopen")
+        assert reopened.status_code == 200
+        assert reopened.json()["status"] == "reopened"
+        assert reopened.json()["closed_at"] is None
+
+        await _advance_admin_flow(ticket["id"], ["assigned", "in_progress", "resolved_pending_confirm"])
+        closed = await client.post(f"/api/tickets/{ticket['id']}/confirm-resolution")
+        assert closed.status_code == 200
+        assert closed.json()["status"] == "closed"
+        assert closed.json()["user_confirmed_at"] is not None
+    finally:
+        await client.aclose()
+        await manager.__aexit__(None, None, None)
+
+
+@pytest.mark.asyncio
+async def test_ticket_boundaries_and_internal_note_visibility():
+    manager, client = await _client()
+    try:
+        user = await register_and_login(client, username="ticket-owner2", password="Owner-pass-1")
+        conv_id = await _seed_conversation(user["id"])
+        created = await client.post(
+            "/api/tickets/from-conversation", json={"conversation_id": conv_id}
+        )
+        ticket_id = created.json()["id"]
+
+        stranger_manager, stranger_client = await _client()
+        try:
+            await register_and_login(
+                stranger_client, username="ticket-stranger2", password="Stranger-pass-1"
+            )
+            cross_created = await stranger_client.post(
+                "/api/tickets/from-conversation", json={"conversation_id": conv_id}
+            )
+            assert cross_created.status_code == 404
+            cross_detail = await stranger_client.get(f"/api/tickets/{ticket_id}")
+            assert cross_detail.status_code == 404
+            assert (
+                await stranger_client.post(f"/api/tickets/{ticket_id}/submit")
+            ).status_code == 404
+        finally:
+            await stranger_client.aclose()
+            await stranger_manager.__aexit__(None, None, None)
+
+        missing = await client.get("/api/tickets/missing-ticket")
+        assert missing.status_code == 404
+
+        invalid = await client.post(f"/api/tickets/{ticket_id}/confirm-resolution")
+        assert invalid.status_code == 422
+
+        await get_ticket_store().append_event(
+            ticket_id=ticket_id,
+            actor_type="admin",
+            actor_id="test-admin",
+            event_type="internal_note",
+            from_status=None,
+            to_status=None,
+            body="内部判断：疑似硬件故障，需返厂检测。",
+            metadata={},
+        )
+        detail = await client.get(f"/api/tickets/{ticket_id}")
+        event_types = [event["event_type"] for event in detail.json()["events"]]
+        assert "internal_note" not in event_types
+        assert all("硬件故障" not in (event.get("body") or "") for event in detail.json()["events"])
+    finally:
+        await client.aclose()
+        await manager.__aexit__(None, None, None)

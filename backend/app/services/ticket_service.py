@@ -285,6 +285,32 @@ class TicketService:
 
     # ------------------------------------------------------------- transitions
 
+    async def add_public_message(
+        self,
+        ticket_id: str,
+        *,
+        actor_type: str,
+        actor_id: Optional[str] = None,
+        body: str,
+    ) -> dict:
+        """Append a public supplementary message to the ticket audit trail."""
+        if actor_type not in ("user", "admin"):
+            raise ValueError("ticket_actor_invalid")
+        ticket = await self._ticket_store.get_ticket(ticket_id)
+        if ticket is None:
+            raise LookupError("ticket_not_found")
+        await self._ticket_store.append_event(
+            ticket_id=ticket_id,
+            actor_type=actor_type,
+            actor_id=actor_id,
+            event_type="public_message" if actor_type == "user" else "public_reply",
+            from_status=None,
+            to_status=None,
+            body=body,
+            metadata={},
+        )
+        return await self._ticket_store.get_ticket(ticket_id)
+
     async def transition(
         self,
         ticket_id: str,

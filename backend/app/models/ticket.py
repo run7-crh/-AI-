@@ -66,3 +66,24 @@ class TicketEvidenceResponse(BaseModel):
     evidence_type: Literal["attachment", "message", "query_log"]
     evidence_id: str
     created_at: datetime
+
+
+class TicketCreateFromConversation(BaseModel):
+    """User request to open (or fetch) the draft ticket of one conversation.
+
+    Deliberately carries no summary/safety/source fields: the service derives
+    the snapshot from persisted server-side data only.
+    """
+
+    conversation_id: str
+    attachment_ids: list[str] = Field(default_factory=list)
+
+
+class TicketMessageCreate(BaseModel):
+    body: str = Field(min_length=1, max_length=4000)
+
+
+class TicketDetailResponse(BaseModel):
+    ticket: TicketResponse
+    events: list[TicketEventResponse] = Field(default_factory=list)
+    evidence: list[TicketEvidenceResponse] = Field(default_factory=list)
