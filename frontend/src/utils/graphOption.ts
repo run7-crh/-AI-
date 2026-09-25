@@ -11,6 +11,9 @@ export const CATEGORY_COLORS: Record<string, string> = {
   训练与优化: '#06b6d4',
 }
 
+export const OTHER_CATEGORY = '其他'
+export const OTHER_COLOR = '#a8a29e'
+
 /** 结构性关系（实线）；对比/相关为弱关系（虚线） */
 export const STRUCTURAL_TYPES = ['依赖', '组成', '应用', '演进']
 
@@ -24,19 +27,28 @@ interface GraphParams {
   data: Record<string, unknown>
 }
 
-export function buildGraphOption(data: GraphData): Record<string, unknown> {
-  const categoryNames = Object.keys(CATEGORY_COLORS)
+export function buildGraphOption(
+  data: GraphData,
+  visibleCategories?: ReadonlySet<string>,
+): Record<string, unknown> {
+  const hasOther = data.nodes.some((node) => !Object.prototype.hasOwnProperty.call(CATEGORY_COLORS, node.category))
+  const categoryNames = [...Object.keys(CATEGORY_COLORS), ...(hasOther ? [OTHER_CATEGORY] : [])]
   const catIndex = new Map(categoryNames.map((n, i) => [n, i]))
+  const allowedCategories = visibleCategories ?? new Set(categoryNames)
+  const normalizeCategory = (category: string): string =>
+    Object.prototype.hasOwnProperty.call(CATEGORY_COLORS, category) ? category : OTHER_CATEGORY
+  const visibleNodes = data.nodes.filter((node) => allowedCategories.has(normalizeCategory(node.category)))
+  const visibleIds = new Set(visibleNodes.map((node) => node.id))
 
-  const nodes = data.nodes.map((n) => ({
+  const nodes = visibleNodes.map((n) => ({
     id: n.id,
     name: n.title,
-    category: catIndex.get(n.category) ?? 0,
+    category: catIndex.get(normalizeCategory(n.category)) ?? 0,
     symbolSize: degreeToSize(n.degree),
     value: n.degree,
   }))
 
-  const links = data.edges.map((e) => ({
+  const links = data.edges.filter((e) => visibleIds.has(e.source) && visibleIds.has(e.target)).map((e) => ({
     source: e.source,
     target: e.target,
     type: e.type,
@@ -51,6 +63,8 @@ export function buildGraphOption(data: GraphData): Record<string, unknown> {
 
   return {
     backgroundColor: '#fafaf9',
+    animation: false,
+    animationDurationUpdate: 0,
     tooltip: {
       confine: true,
       formatter: (params: GraphParams) => {
@@ -65,15 +79,6 @@ export function buildGraphOption(data: GraphData): Record<string, unknown> {
         return ''
       },
     },
-    legend: [
-      {
-        data: categoryNames,
-        bottom: 12,
-        icon: 'circle',
-        itemWidth: 10,
-        textStyle: { color: '#57534e', fontSize: 11 },
-      },
-    ],
     series: [
       {
         type: 'graph',
@@ -82,13 +87,13 @@ export function buildGraphOption(data: GraphData): Record<string, unknown> {
           repulsion: 600,
           edgeLength: [140, 260],
           gravity: 0.05,
-          layoutAnimation: true,
+          layoutAnimation: false,
         },
         roam: true,
         draggable: true,
         categories: categoryNames.map((n) => ({
           name: n,
-          itemStyle: { color: CATEGORY_COLORS[n] },
+          itemStyle: { color: CATEGORY_COLORS[n] ?? OTHER_COLOR },
         })),
         data: nodes,
         links,

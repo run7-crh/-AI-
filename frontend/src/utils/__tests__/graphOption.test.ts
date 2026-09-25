@@ -25,17 +25,21 @@ describe('degreeToSize', () => {
 
 describe('buildGraphOption', () => {
   const option = buildGraphOption(data) as {
-    series: Array<{ data: Array<Record<string, unknown>>; links: Array<Record<string, unknown>> }>
-    legend: Array<{ data: string[] }>
+    series: Array<{
+      data: Array<Record<string, unknown>>
+      links: Array<Record<string, unknown>>
+      categories: Array<{ name: string }>
+    }>
+    animation: boolean
   }
 
   it('maps nodes with category index and degree size', () => {
     const a = option.series[0].data.find((n) => n.id === 'a')
     expect(a?.category).toBe(2) // Agent工程 在 CATEGORY_COLORS 第 3 位
     expect(a?.symbolSize).toBe(38)
-    // 未知大类兜底为第 0 类（基础架构）
+    // 未知大类归入中性“其他”类别
     const c = option.series[0].data.find((n) => n.id === 'c')
-    expect(c?.category).toBe(0)
+    expect(c?.category).toBe(5)
   })
 
   it('solid for structural types, dashed for weak', () => {
@@ -45,8 +49,33 @@ describe('buildGraphOption', () => {
     expect(rel.description).toBe('弱关联') // tooltip 数据随边携带
   })
 
-  it('legend covers all five categories', () => {
-    expect(option.legend[0].data).toEqual(Object.keys(CATEGORY_COLORS))
+  it('categories cover all five fixed categories', () => {
+    expect(option.series[0].categories.slice(0, 5).map((item) => item.name)).toEqual(Object.keys(CATEGORY_COLORS))
     expect(STRUCTURAL_TYPES).toContain('依赖')
+  })
+
+  it('filters nodes and links by visible categories', () => {
+    const filtered = buildGraphOption(data, new Set(['Agent工程'])) as {
+      series: Array<{ data: Array<Record<string, unknown>>; links: Array<Record<string, unknown>> }>
+    }
+    expect(filtered.series[0].data.map((node) => node.id)).toEqual(['a'])
+    expect(filtered.series[0].links).toHaveLength(0)
+  })
+
+  it('maps unknown categories to neutral 其他', () => {
+    const other = buildGraphOption(data, new Set(['其他'])) as {
+      series: Array<{ data: Array<Record<string, unknown>>; categories: Array<Record<string, unknown>> }>
+    }
+    expect(other.series[0].data.find((node) => node.id === 'c')).toMatchObject({ category: 5 })
+    expect(other.series[0].categories[5]).toMatchObject({ name: '其他' })
+  })
+
+  it('disables continuous force relayout', () => {
+    const option = buildGraphOption(data) as {
+      animation: boolean
+      series: Array<{ force: Record<string, unknown> }>
+    }
+    expect(option.animation).toBe(false)
+    expect(option.series[0].force.layoutAnimation).toBe(false)
   })
 })

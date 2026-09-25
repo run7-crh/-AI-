@@ -6,15 +6,15 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import * as echarts from 'echarts/core'
 import { GraphChart } from 'echarts/charts'
-import { TooltipComponent, LegendComponent } from 'echarts/components'
+import { TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import { ArrowLeft, RefreshCw, Send, X } from 'lucide-vue-next'
 import { fetchGraph, rebuildIndex, GraphNotBuiltError } from '@/api/graph'
-import { buildGraphOption, CATEGORY_COLORS } from '@/utils/graphOption'
+import { buildGraphOption, CATEGORY_COLORS, OTHER_CATEGORY, OTHER_COLOR } from '@/utils/graphOption'
 import type { GraphData, GraphNode } from '@/types'
 import { useAuthStore } from '@/stores/auth'
 
-echarts.use([GraphChart, TooltipComponent, LegendComponent, CanvasRenderer])
+echarts.use([GraphChart, TooltipComponent, CanvasRenderer])
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -25,10 +25,31 @@ const loadError = ref('')
 const rebuilding = ref(false)
 const data = ref<GraphData | null>(null)
 const selected = ref<GraphNode | null>(null)
+const visibleCategories = ref<Set<string>>(new Set(Object.keys(CATEGORY_COLORS)))
 
 const containerRef = ref<HTMLElement>()
 let chart: echarts.ECharts | null = null
 let resizeObserver: ResizeObserver | null = null
+let resizeFrame: number | null = null
+
+function normalizeCategory(category: string): string {
+  return Object.prototype.hasOwnProperty.call(CATEGORY_COLORS, category) ? category : OTHER_CATEGORY
+}
+
+function categoryColor(category: string): string {
+  return CATEGORY_COLORS[category] ?? OTHER_COLOR
+}
+
+const legendCategories = computed(() => {
+  const names = Object.keys(CATEGORY_COLORS)
+  const hasOther = Boolean(data.value?.nodes.some((node) => !names.includes(node.category)))
+  return hasOther ? [...names, OTHER_CATEGORY] : names
+})
+
+const hasVisibleNodes = computed(() => {
+  if (!data.value) return false
+  return data.value.nodes.some((node) => visibleCategories.value.has(normalizeCategory(node.category)))
+})
 
 /** 选中概念的相邻概念（含关系类型），供卡片列表点击切换 */
 const neighbors = computed(() => {
@@ -50,6 +71,7 @@ async function load(): Promise<void> {
   loadError.value = ''
   try {
     data.value = await fetchGraph()
+    visibleCategories.value = new Set(legendCategories.value)
     renderChart()
   } catch (e) {
     if (e instanceof GraphNotBuiltError) notBuilt.value = true
@@ -70,7 +92,16 @@ function renderChart(): void {
       }
     })
   }
-  chart.setOption(buildGraphOption(data.value))
+  chart.setOption(buildGraphOption(data.value, visibleCategories.value))
+}
+
+function toggleCategory(category: string): void {
+  const next = new Set(visibleCategories.value)
+  if (next.has(category)) next.delete(category)
+  else next.add(category)
+  visibleCategories.value = next
+  if (selected.value && !next.has(normalizeCategory(selected.value.category))) selected.value = null
+  renderChart()
 }
 
 async function onRebuild(): Promise<void> {
@@ -98,13 +129,20 @@ function askAgent(n: GraphNode): void {
 onMounted(() => {
   load()
   if (containerRef.value) {
-    resizeObserver = new ResizeObserver(() => chart?.resize())
+    resizeObserver = new ResizeObserver(() => {
+      if (resizeFrame !== null) return
+      resizeFrame = requestAnimationFrame(() => {
+        resizeFrame = null
+        chart?.resize()
+      })
+    })
     resizeObserver.observe(containerRef.value)
   }
 })
 
 onBeforeUnmount(() => {
   resizeObserver?.disconnect()
+  if (resizeFrame !== null) cancelAnimationFrame(resizeFrame)
   chart?.dispose()
   chart = null
 })
@@ -124,37 +162,69 @@ onBeforeUnmount(() => {
       <span v-if="data" class="text-xs text-gray-400">
         {{ data.nodes.length }} 个概念 · {{ data.edges.length }} 条关系
       </span>
+      <span v-if="data && data.edges.length === 0" class="text-[10px] text-amber-600">
+        当前暂无关系，可能需要重建知识图谱数据
+      </span>
     </header>
 
     <div class="flex-1 flex min-h-0">
-      <!-- 图谱画布 -->
-      <div ref="containerRef" class="flex-1 min-w-0" />
+      <main class="flex-1 min-w-0 min-h-0 flex flex-col">
+        <div v-if="data" class="shrink-0 border-b border-gray-200/80 bg-white px-4 py-2 space-y-1.5">
+          <span class="text-[10px] font-medium text-gray-400 uppercase tracking-wide">按类别筛选</span>
+          <div class="flex flex-wrap items-center gap-1.5">
+            <button
+              v-for="category in legendCategories"
+              :key="category"
+              type="button"
+              :aria-pressed="visibleCategories.has(category)"
+              @click="toggleCategory(category)"
+              class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] transition-colors"
+              :class="visibleCategories.has(category) ? 'border-gray-200 bg-white text-stone-700' : 'border-gray-100 bg-gray-50 text-gray-400'"
+            >
+              <span
+                class="h-2 w-2 rounded-full"
+                :style="{ backgroundColor: categoryColor(category), opacity: visibleCategories.has(category) ? 1 : 0.35 }"
+              />
+              {{ category }}
+            </button>
+          </div>
+        </div>
 
-      <!-- 加载 / 空态 / 错误 -->
-      <div
-        v-if="loading || notBuilt || loadError"
-        class="absolute inset-0 flex items-center justify-center bg-stone-50/80 z-10"
-      >
-        <div v-if="loading" class="text-sm text-gray-400">图谱加载中...</div>
-        <div v-else-if="notBuilt" class="text-center space-y-3">
-          <p class="text-sm text-gray-500">知识图谱尚未构建</p>
-          <p class="text-xs text-gray-400">重建知识库索引后将自动生成概念关系图谱</p>
-          <button
-            v-if="auth.isAdmin"
-            @click="onRebuild"
-            :disabled="rebuilding"
-            class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-stone-800 text-white text-xs font-medium hover:bg-stone-700 disabled:opacity-50 transition-colors"
+        <div class="relative flex-1 min-h-0">
+          <!-- 图谱画布 -->
+          <div ref="containerRef" class="absolute inset-0" />
+
+          <!-- 加载 / 空态 / 错误 -->
+          <div
+            v-if="loading || notBuilt || loadError"
+            class="absolute inset-0 flex items-center justify-center bg-stone-50/80 z-10"
           >
-            <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': rebuilding }" />
-            {{ rebuilding ? '重建中（含 18 次 LLM 抽取，约 1-2 分钟）' : '重建知识库' }}
-          </button>
-          <p v-else class="text-xs text-gray-400">请联系管理员构建知识图谱</p>
+            <div v-if="loading" class="text-sm text-gray-400">图谱加载中...</div>
+            <div v-else-if="notBuilt" class="text-center space-y-3">
+              <p class="text-sm text-gray-500">知识图谱尚未构建</p>
+              <p class="text-xs text-gray-400">重建知识库索引后将自动生成概念关系图谱</p>
+              <button
+                v-if="auth.isAdmin"
+                @click="onRebuild"
+                :disabled="rebuilding"
+                class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-stone-800 text-white text-xs font-medium hover:bg-stone-700 disabled:opacity-50 transition-colors"
+              >
+                <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': rebuilding }" />
+                {{ rebuilding ? '重建中（含 18 次 LLM 抽取，约 1-2 分钟）' : '重建知识库' }}
+              </button>
+              <p v-else class="text-xs text-gray-400">请联系管理员构建知识图谱</p>
+            </div>
+            <div v-else class="text-center space-y-2">
+              <p class="text-sm text-red-500">{{ loadError }}</p>
+              <button @click="load" class="text-xs text-gray-500 hover:text-stone-800">重试</button>
+            </div>
+          </div>
+
+          <div v-else-if="data && !hasVisibleNodes" class="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <p class="rounded-lg bg-white/90 px-3 py-2 text-xs text-gray-500 shadow-sm">请至少开启一个类别</p>
+          </div>
         </div>
-        <div v-else class="text-center space-y-2">
-          <p class="text-sm text-red-500">{{ loadError }}</p>
-          <button @click="load" class="text-xs text-gray-500 hover:text-stone-800">重试</button>
-        </div>
-      </div>
+      </main>
 
       <!-- 侧边概念卡片 -->
       <Transition
