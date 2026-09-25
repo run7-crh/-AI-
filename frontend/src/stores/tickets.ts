@@ -80,6 +80,25 @@ export const useTicketsStore = defineStore('tickets', () => {
     }
   }
 
+  async function updateDraft(
+    ticketId: string,
+    payload: { title?: string; problem_summary?: string },
+  ): Promise<Ticket> {
+    acting.value = true
+    error.value = null
+    try {
+      const ticket = await ticketsApi.updateTicketDraft(ticketId, payload)
+      replaceInList(ticket)
+      if (current.value?.ticket.id === ticketId) current.value.ticket = ticket
+      return ticket
+    } catch (cause) {
+      error.value = cause instanceof Error ? cause.message : '修改工单草稿失败'
+      throw cause
+    } finally {
+      acting.value = false
+    }
+  }
+
   async function addMessage(ticketId: string, body: string): Promise<void> {
     acting.value = true
     error.value = null
@@ -148,6 +167,7 @@ export const useTicketsStore = defineStore('tickets', () => {
     openDetail,
     closeDetail,
     createDraft,
+    updateDraft,
     submit,
     addMessage,
     confirmResolution,

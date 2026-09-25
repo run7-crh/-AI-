@@ -59,6 +59,7 @@ const eventLabels: Record<string, string> = {
   public_message: '用户补充',
   internal_note: '内部备注',
   agent_suggestion: 'AI 建议',
+  updated: '草稿更新',
 }
 
 const actorLabels: Record<string, string> = {

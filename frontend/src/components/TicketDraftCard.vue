@@ -11,13 +11,21 @@ const emit = defineEmits<{ created: [ticket: Ticket]; submitted: [ticket: Ticket
 const store = useTicketsStore()
 const draft = ref<Ticket | null>(null)
 const draftError = ref<string | null>(null)
+const titleDraft = ref('')
+const summaryDraft = ref('')
 
 const canSubmit = computed(() => draft.value?.status === 'draft')
+
+function fillEditors(ticket: Ticket): void {
+  titleDraft.value = ticket.title
+  summaryDraft.value = ticket.problem_summary
+}
 
 async function createDraft(): Promise<void> {
   draftError.value = null
   try {
     draft.value = await store.createDraft(props.conversationId)
+    fillEditors(draft.value)
     emit('created', draft.value)
   } catch {
     draftError.value = store.error || '创建工单草稿失败，请稍后重试'
@@ -28,8 +36,19 @@ async function submitDraft(): Promise<void> {
   if (!draft.value) return
   draftError.value = null
   try {
-    draft.value = await store.submit(draft.value.id)
-    emit('submitted', draft.value)
+    let current = draft.value
+    const title = titleDraft.value.trim()
+    const summary = summaryDraft.value.trim()
+    const edited = title !== current.title || summary !== current.problem_summary
+    if (edited && (title || summary)) {
+      current = await store.updateDraft(current.id, {
+        title: title || undefined,
+        problem_summary: summary || undefined,
+      })
+    }
+    current = await store.submit(current.id)
+    draft.value = current
+    emit('submitted', current)
   } catch {
     draftError.value = store.error || '提交工单失败，请稍后重试'
   }
@@ -62,8 +81,30 @@ async function submitDraft(): Promise<void> {
           {{ draft.status === 'draft' ? '草稿' : '已提交' }}
         </span>
       </div>
-      <p class="text-stone-600">{{ draft.title }}</p>
-      <p class="whitespace-pre-wrap text-gray-500">{{ draft.problem_summary }}</p>
+      <template v-if="canSubmit">
+        <input
+          v-model="titleDraft"
+          maxlength="100"
+          aria-label="工单标题（可修改）"
+          class="w-full rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-stone-800 focus:outline-none focus:ring-2 focus:ring-stone-300"
+          data-testid="draft-title-input"
+        />
+        <textarea
+          v-model="summaryDraft"
+          rows="5"
+          maxlength="1000"
+          aria-label="问题描述（可修改）"
+          class="w-full resize-y rounded-lg border border-gray-200 bg-white px-2.5 py-2 text-xs leading-relaxed text-stone-600 focus:outline-none focus:ring-2 focus:ring-stone-300"
+          data-testid="draft-summary-input"
+        ></textarea>
+        <p class="text-[11px] text-gray-400">
+          标题与描述提交前可修改；机型、故障分类和安全等级由系统判定，不可编辑。
+        </p>
+      </template>
+      <template v-else>
+        <p class="font-medium text-stone-700">{{ draft.title }}</p>
+        <p class="whitespace-pre-wrap text-gray-500">{{ draft.problem_summary }}</p>
+      </template>
       <button
         v-if="canSubmit"
         class="flex items-center gap-1 rounded-lg bg-stone-800 px-2.5 py-1 font-medium text-white transition-colors hover:bg-stone-700 disabled:cursor-not-allowed disabled:opacity-50"

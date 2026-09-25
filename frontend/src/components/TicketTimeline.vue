@@ -23,6 +23,7 @@ const eventLabels: Record<string, string> = {
   status_changed: '状态变更',
   public_reply: '客服回复',
   public_message: '用户补充',
+  updated: '草稿更新',
 }
 
 const actorLabels: Record<string, string> = {

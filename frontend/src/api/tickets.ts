@@ -50,6 +50,21 @@ export async function submitTicket(ticketId: string): Promise<Ticket> {
   return response.json()
 }
 
+export async function updateTicketDraft(
+  ticketId: string,
+  payload: { title?: string; problem_summary?: string },
+): Promise<Ticket> {
+  const response = await ensureOk(await apiFetch(
+    `/api/tickets/${encodeURIComponent(ticketId)}/draft`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    },
+  ))
+  return response.json()
+}
+
 export async function addTicketMessage(ticketId: string, body: string): Promise<Ticket> {
   const response = await ensureOk(await apiFetch(
     `/api/tickets/${encodeURIComponent(ticketId)}/messages`,

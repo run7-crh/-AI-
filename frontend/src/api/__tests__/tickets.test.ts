@@ -7,6 +7,7 @@ import {
   listTickets,
   reopenTicket,
   submitTicket,
+  updateTicketDraft,
 } from '../tickets'
 import { ApiError } from '../http'
 import { markAuthenticated } from '../http'
@@ -67,6 +68,28 @@ describe('ticket API', () => {
     const messageCall = fetchMock.mock.calls[3]
     expect(messageCall[1].method).toBe('POST')
     expect(JSON.parse(messageCall[1].body)).toEqual({ body: '补充信息' })
+  })
+
+  it('patches draft edits to the dedicated draft endpoint', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse({ id: 't1', title: '机翼断裂更换咨询' }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const ticket = await updateTicketDraft('t1', {
+      title: '机翼断裂更换咨询',
+      problem_summary: '仓库中被砸断机翼，咨询更换流程。',
+    })
+
+    expect(ticket).toMatchObject({ title: '机翼断裂更换咨询' })
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(url).toBe('/api/tickets/t1/draft')
+    expect(init.method).toBe('PATCH')
+    expect(init.credentials).toBe('include')
+    expect(JSON.parse(init.body)).toEqual({
+      title: '机翼断裂更换咨询',
+      problem_summary: '仓库中被砸断机翼，咨询更换流程。',
+    })
   })
 
   it('parses backend detail codes into ApiError and notifies auth expiry once', async () => {
