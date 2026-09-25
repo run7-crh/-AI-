@@ -4,7 +4,11 @@ import { useChatStore } from '@/stores/chat'
 
 const store = useChatStore()
 
-const suggestions = ['什么是 RAG？', '最新的 LLM 趋势', '比较 RAG 和微调的优劣']
+const suggestions = [
+  'Mini 4 Pro 指南针怎么校准？',
+  '飞行中失控应该先做什么？',
+  '电池日常保养有哪些步骤？',
+]
 
 function useSuggestion(text: string) {
   store.inputText = text
@@ -22,9 +26,9 @@ function useSuggestion(text: string) {
       </svg>
     </div>
 
-    <h2 class="text-2xl font-semibold text-stone-800 mb-2 tracking-tight">智识助手</h2>
+    <h2 class="text-2xl font-semibold text-stone-800 mb-2 tracking-tight">无人机智能售后技术支持</h2>
     <p class="text-sm text-gray-500 mb-8 max-w-sm leading-relaxed">
-      基于知识库与联网搜索的智能问答，随时为你解答 AI 领域问题。
+      为你提供产品咨询、故障排查、飞行安全、校准保养与 SOP 操作指导。
     </p>
 
     <!-- 横向建议标签 -->

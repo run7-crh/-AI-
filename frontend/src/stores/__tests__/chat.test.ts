@@ -85,7 +85,7 @@ describe('chat store', () => {
     ;(convApi.getConversation as any).mockResolvedValue({ id: 'new', messages: [] })
     ;(chatApi.streamChat as any).mockImplementation(async (_req: unknown, cb: any) => {
       cb.onToken('答案')
-      cb.onMeta({ route_path: 'local', sources: [{ content: 'c', source: 'a.md', title: 'A', score: 0.9 }], judge_log: [] })
+      cb.onMeta({ route_path: 'local', sources: [{ content: 'c', source: 'a.md', title: 'A', score: 0.9 }], judge_log: [], safety_flag: true, safety_level: 'high', safety_situation: 'charging', escalation_required: true, intent: 'troubleshooting' })
       cb.onDone()
     })
 
@@ -96,6 +96,28 @@ describe('chat store', () => {
     expect(store.messages[1].route_path).toBe('local')
     expect(store.messages[1].sources?.length).toBe(1)
     expect(store.messages[1].sources?.[0].source).toBe('a.md')
+    expect(store.messages[1].safety_level).toBe('high')
+    expect(store.messages[1].escalation_required).toBe(true)
+    expect(store.messages[1].intent).toBe('troubleshooting')
+  })
+
+  it('reconciles streamed tokens with the final answer event', async () => {
+    ;(convApi.createConversation as any).mockResolvedValue({
+      id: 'new', title: '', message_count: 0, created_at: '', updated_at: '',
+    })
+    ;(convApi.getConversation as any).mockResolvedValue({ id: 'new', messages: [] })
+    ;(chatApi.streamChat as any).mockImplementation(async (_req: unknown, cb: any) => {
+      cb.onToken('重复片段')
+      cb.onFinal('最终答案')
+      cb.onDone()
+    })
+
+    const store = useChatStore()
+    store.inputText = 'q'
+    await store.sendMessage()
+
+    expect(store.messages[1].content).toBe('最终答案')
+    expect(store.messages[1].isStreaming).toBe(false)
   })
 
   it('sendMessage captures error event', async () => {
@@ -131,6 +153,27 @@ describe('chat store', () => {
     expect(store.currentConversationId).toBe('c1')
     expect(store.messages.length).toBe(2)
     expect(store.messages[1].content).toBe('hello')
+  })
+
+  it('selectConversation preserves persisted safety and intent metadata', async () => {
+    ;(convApi.getConversation as any).mockResolvedValue({
+      id: 'c1', messages: [{
+        id: 'm2', role: 'assistant', content: '请先降落', created_at: '',
+        safety_flag: true, safety_level: 'high', safety_situation: 'in_flight',
+        escalation_required: true, intent: 'flight_safety',
+        metadata_constraints: { product_model: 'mini_4_pro' },
+        document_type_priority: ['safety'],
+      }],
+    })
+
+    const store = useChatStore()
+    await store.selectConversation('c1')
+
+    expect(store.messages[0].safety_flag).toBe(true)
+    expect(store.messages[0].escalation_required).toBe(true)
+    expect(store.messages[0].intent).toBe('flight_safety')
+    expect(store.messages[0].metadata_constraints).toEqual({ product_model: 'mini_4_pro' })
+    expect(store.messages[0].document_type_priority).toEqual(['safety'])
   })
 
   it('deleteConversation removes and selects next', async () => {

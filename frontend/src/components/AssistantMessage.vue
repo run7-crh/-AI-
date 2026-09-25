@@ -3,7 +3,7 @@
 import { computed, ref } from 'vue'
 import type { Message, FeedbackRating, UselessReason } from '@/types'
 import { useChatStore } from '@/stores/chat'
-import { Copy, Check, RefreshCw, ThumbsUp, ThumbsDown, Bug } from 'lucide-vue-next'
+import { Copy, Check, RefreshCw, ThumbsUp, ThumbsDown, Bug, ShieldAlert, Headset } from 'lucide-vue-next'
 import MarkdownRenderer from './MarkdownRenderer.vue'
 import TraceTimeline from './TraceTimeline.vue'
 import SourceCard from './SourceCard.vue'
@@ -13,6 +13,48 @@ import { putFeedback } from '@/api/feedback'
 const props = defineProps<{ message: Message }>()
 const store = useChatStore()
 const copied = ref(false)
+
+const intentLabels: Record<string, string> = {
+  product_parameter: '产品参数',
+  technical_principle: '技术原理',
+  troubleshooting: '故障排查',
+  sop_operation: 'SOP 操作',
+  case_reference: '模拟案例参考',
+  flight_safety: '飞行安全',
+  compliance_regulation: '合规与法规',
+  chitchat: '闲聊',
+  time_sensitive: '时效性问题',
+  knowledge_gap: '知识库未覆盖问题',
+}
+
+const safetySituationLabels: Record<string, string> = {
+  in_flight: '飞行中',
+  landed: '已降落',
+  charging: '充电中',
+  unknown: '状态未知',
+}
+
+const showSafetyNotice = computed(() =>
+  props.message.safety_flag === true || props.message.safety_level === 'high'
+)
+const safetyLevelLabel = computed(() => props.message.safety_level === 'high' ? '高风险' : '需注意')
+const safetySituationLabel = computed(() => {
+  const situation = props.message.safety_situation
+  return situation ? safetySituationLabels[situation] || situation : ''
+})
+const intentLabel = computed(() => {
+  const intent = props.message.intent
+  return intent ? intentLabels[intent] || intent : ''
+})
+const attachmentStatusLabel = computed(() => {
+  const status = props.message.attachment_status
+  if (!status) return ''
+  if (status.status === 'failed') return status.message || '附件处理失败'
+  if (status.phase === 'parse') return status.status === 'ready' ? '附件已解析，正在结合本轮问题' : '正在解析附件'
+  if (status.phase === 'context') return '正在载入附件上下文'
+  if (status.phase === 'retrieve') return '正在检索相关售后资料'
+  return status.message || ''
+})
 
 // 第 2 阶段：反馈状态（已反馈时按钮置灰）
 const feedbackState = ref<FeedbackRating | null>(null)
@@ -83,7 +125,7 @@ async function submitFeedback(rating: FeedbackRating, uselessReason?: UselessRea
       </svg>
     </div>
 
-    <div class="flex flex-col gap-1 max-w-[80%]">
+    <div class="flex min-w-0 flex-col gap-1 max-w-[80%]">
       <!-- 思考过程可视化：流式期间实时展开，完成后折叠（历史消息无 trace 不渲染） -->
       <TraceTimeline
         v-if="message.trace && message.trace.length"
@@ -91,6 +133,46 @@ async function submitFeedback(rating: FeedbackRating, uselessReason?: UselessRea
         :streaming="!!message.isStreaming"
         :duration-ms="message.traceDurationMs"
       />
+
+      <!-- 阶段 2：只展示后端给出的安全判断，不在前端根据正文自行推断风险。 -->
+      <div
+        v-if="showSafetyNotice"
+        class="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-900"
+        data-testid="safety-notice"
+      >
+        <ShieldAlert class="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
+        <div class="min-w-0">
+          <div class="font-semibold">安全提醒 · {{ safetyLevelLabel }}</div>
+          <div v-if="safetySituationLabel" class="mt-0.5 text-red-800">设备状态：{{ safetySituationLabel }}</div>
+          <div class="mt-0.5">请先停止高风险操作，按回答中的安全建议处理。</div>
+          <div v-if="message.escalation_required" class="mt-1 flex items-start gap-1 font-medium">
+            <Headset class="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            建议联系人工或官方售后支持，当前问题需要进一步确认。
+          </div>
+        </div>
+      </div>
+
+      <div
+        v-else-if="message.escalation_required"
+        class="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900"
+        data-testid="escalation-notice"
+      >
+        <Headset class="h-4 w-4 shrink-0 text-amber-600" />
+        建议联系人工或官方售后支持，当前问题需要进一步确认。
+      </div>
+
+      <div v-if="intentLabel" class="flex items-center gap-2 text-[11px] text-gray-500" data-testid="intent-label">
+        <span class="rounded-full border border-stone-200 bg-stone-50 px-2 py-0.5">问题类型：{{ intentLabel }}</span>
+      </div>
+
+      <div
+        v-if="attachmentStatusLabel"
+        class="flex items-center gap-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-900"
+        data-testid="attachment-status"
+      >
+        <span class="h-1.5 w-1.5 rounded-full bg-sky-500" :class="message.attachment_status?.status === 'started' ? 'animate-pulse' : ''"></span>
+        {{ attachmentStatusLabel }}
+      </div>
 
       <!-- P1-3: 质量警告横幅（仅 quality_fail 路径展示） -->
       <div

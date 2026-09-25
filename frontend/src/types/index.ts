@@ -23,11 +23,52 @@ export interface Credentials {
 }
 
 export interface Source {
+  id?: string
+  source_type?: 'local' | 'web' | 'attachment'
   content: string
   source: string
   title: string
-  score: number
+  score?: number | null
+  url?: string | null
+  document_id?: string | null
+  chunk_id?: string | null
+  product_model?: string | null
+  document_type?: string | null
+  component?: string | null
+  fault_type?: string | null
+  source_id?: string | null
+  data_type?: string | null
+  content_truncated?: boolean
 }
+
+export type AttachmentLifecycleStatus = 'uploading' | 'pending' | 'ready' | 'failed' | 'expired' | 'deleted'
+export type AttachmentExtractionStatus = 'pending' | 'ready' | 'failed' | 'skipped'
+
+/** Public attachment metadata. The extracted body is never part of this type. */
+export interface Attachment {
+  id: string
+  attachment_id?: string
+  original_name: string
+  extension: string
+  declared_mime?: string | null
+  detected_mime?: string | null
+  size_bytes: number
+  sha256?: string
+  status: AttachmentLifecycleStatus
+  extraction_status: AttachmentExtractionStatus
+  extracted_chars?: number | null
+  extraction_error?: string | null
+  extraction_error_code?: string | null
+  extraction_summary?: string | null
+  scan_status?: string
+  created_at?: string
+  expires_at?: string
+  deleted_at?: string | null
+  /** Client-only upload progress for the current draft. */
+  upload_progress?: number
+}
+
+export type AttachmentSummary = Omit<Attachment, 'sha256' | 'upload_progress'>
 
 export interface JudgeResult {
   judge_type: string
@@ -43,7 +84,16 @@ export interface Message {
   sources?: Source[]
   judge_log?: JudgeResult[]
   quality_warning?: string  // P1-3: 质量不合格时的警告文本
-  query_log_id?: string  // 第 2 阶段：绑定 query_log，供反馈接口使用
+  query_log_id?: string | null  // 仅日志写入成功时可用于反馈
+  safety_flag?: boolean | null
+  safety_level?: string | null
+  safety_situation?: string | null
+  escalation_required?: boolean | null
+  intent?: string | null
+  metadata_constraints?: Record<string, string> | null
+  document_type_priority?: string[] | null
+  attachments?: AttachmentSummary[] | null
+  attachment_status?: AttachmentStatusPayload | null
   created_at: string
   // 前端运行时状态（不持久化）
   isStreaming?: boolean
@@ -62,14 +112,25 @@ export interface ChatRequest {
   conversation_id: string
   message: string
   user_label?: string  // 第 2 阶段：朋友测试时区分谁问的（如 'A'/'B'/'C'）
+  attachment_ids?: string[]
 }
 
 export interface ChatMeta {
   route_path?: string
+  final_answer?: string
   sources?: Source[]
   judge_log?: JudgeResult[]
   quality_warning?: string  // P1-3: 质量警告
-  query_log_id?: string  // 第 2 阶段：供前端绑定反馈
+  query_log_id?: string | null  // 仅日志写入成功时可用于反馈
+  safety_flag?: boolean | null
+  safety_level?: string | null
+  safety_situation?: string | null
+  escalation_required?: boolean | null
+  intent?: string | null
+  metadata_constraints?: Record<string, string> | null
+  document_type_priority?: string[] | null
+  attachment_ids?: string[] | null
+  attachment_parse_status?: string | null
 }
 
 // 第 2 阶段：用户反馈系统
@@ -128,11 +189,24 @@ export interface NodeEndPayload {
 export interface StreamCallbacks {
   onStage: (stage: StagePayload) => void
   onToken: (token: string) => void
+  /** 完整答案兜底事件；流式 token 已完整到达时可忽略。 */
+  onFinal?: (answer: string) => void
   onReasoning?: (text: string) => void
   onNodeEnd?: (payload: NodeEndPayload) => void
+  onAttachmentStatus?: (payload: AttachmentStatusPayload) => void
   onMeta: (meta: ChatMeta) => void
   onError: (message: string) => void
   onDone: () => void
+}
+
+export interface AttachmentStatusPayload {
+  phase: 'upload' | 'parse' | 'context' | 'retrieve' | 'failed'
+  status: 'started' | 'ready' | 'failed'
+  attachment_ids?: string[]
+  count?: number
+  extracted_chars?: number
+  error_code?: string | null
+  message?: string
 }
 
 // 知识图谱（GET /api/graph）

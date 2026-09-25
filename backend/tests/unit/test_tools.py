@@ -49,6 +49,29 @@ async def test_call_llm_with_schema_returns_structured():
 
 
 @pytest.mark.asyncio
+async def test_call_llm_stream_failure_is_not_retried_after_partial_stream():
+    """A failed stream must not restart and duplicate already emitted tokens."""
+    attempts = 0
+
+    class FailingStreamLLM:
+        def __init__(self):
+            self.astream = self._astream
+
+        async def _astream(self, messages, config=None):
+            nonlocal attempts
+            attempts += 1
+            yield type("Chunk", (), {"content": "部分"})()
+            raise RuntimeError("连接中断")
+
+    mock_llm = FailingStreamLLM()
+    with patch("app.graph.tools.ChatOpenAI", return_value=mock_llm):
+        with pytest.raises(RuntimeError, match="连接中断"):
+            await call_llm("system", "user", stream=True)
+
+    assert attempts == 1
+
+
+@pytest.mark.asyncio
 async def test_evaluate_is_relevant_returns_passed_true():
     mock_structured = MagicMock()
     mock_structured.passed = True
@@ -91,21 +114,48 @@ from app.graph.tools import retrieve, tavily_search
 @pytest.mark.asyncio
 async def test_retrieve_calls_rag_retriever():
     mock_retriever = MagicMock()
+    mock_retriever.final_top_k = 3
     mock_retriever.retrieve = MagicMock(return_value=[
         {"content": "x", "source": "a.md", "title": "A", "score": 0.9}
     ])
     result = await retrieve("测试", mock_retriever, top_k=3)
-    mock_retriever.retrieve.assert_called_once_with("测试")
+    mock_retriever.retrieve.assert_called_once_with("测试", top_k=3)
     assert result[0]["content"] == "x"
 
+
 @pytest.mark.asyncio
-async def test_tavily_search_returns_formatted_string():
+async def test_retrieve_forwards_non_default_top_k():
+    """Routing's top-1 relevance probe must reach the retriever."""
+    mock_retriever = MagicMock()
+    mock_retriever.final_top_k = 3
+    mock_retriever.retrieve = MagicMock(return_value=[])
+    await retrieve("测试", mock_retriever, top_k=1)
+    mock_retriever.retrieve.assert_called_once_with("测试", top_k=1)
+
+
+@pytest.mark.asyncio
+async def test_retrieve_supports_legacy_query_only_retriever():
+    """Adapters predating request-scoped top_k remain usable."""
+    class QueryOnlyRetriever:
+        def retrieve(self, query):
+            return [{"content": query}]
+
+    result = await retrieve("测试", QueryOnlyRetriever(), top_k=1)
+    assert result == [{"content": "测试"}]
+
+@pytest.mark.asyncio
+async def test_tavily_search_returns_structured_evidence():
     mock_client = MagicMock()
-    mock_client.search = MagicMock(return_value={"results": [{"content": "结果1"}, {"content": "结果2"}]})
+    mock_client.search = MagicMock(return_value={"results": [
+        {"content": "结果1", "title": "标题1", "url": "https://example.com/1"},
+        {"content": "结果2", "title": "标题2", "url": "https://example.com/2"},
+    ]})
     with patch("app.graph.tools.TavilyClient", return_value=mock_client):
         result = await tavily_search("test query", max_results=5)
-    assert "结果1" in result
-    assert "结果2" in result
+    assert [item["content"] for item in result] == ["结果1", "结果2"]
+    assert result[0]["source_type"] == "web"
+    assert result[0]["title"] == "标题1"
+    assert result[0]["url"] == "https://example.com/1"
 
 @pytest.mark.asyncio
 async def test_tavily_search_handles_empty_results():
@@ -113,8 +163,9 @@ async def test_tavily_search_handles_empty_results():
     mock_client.search = MagicMock(return_value={"results": []})
     with patch("app.graph.tools.TavilyClient", return_value=mock_client):
         result = await tavily_search("test")
-    # 空结果时返回提示字符串（非空），让 generate_answer 据此生成"无法获取实时信息"的回答
-    assert "未返回结果" in result
+    # 空结果时返回结构化错误条目，让 generate_answer 显示有限信息提示。
+    assert result[0]["is_error"] is True
+    assert "未返回结果" in result[0]["content"]
 
 
 @pytest.mark.asyncio
@@ -124,9 +175,11 @@ async def test_tavily_search_handles_api_failure():
     mock_client.search = MagicMock(side_effect=Exception("API key invalid"))
     with patch("app.graph.tools.TavilyClient", return_value=mock_client):
         result = await tavily_search("test")
-    # 不抛异常，返回含错误类型的提示
-    assert "联网搜索失败" in result
-    assert "Exception" in result
+    # 不抛异常，返回结构化错误提示
+    assert result[0]["is_error"] is True
+    assert "联网搜索失败" in result[0]["content"]
+    assert "Exception" in result[0]["content"]
+    assert result[0]["is_error"] is True
 
 
 # P1-9: Token 估算与 history 截断测试

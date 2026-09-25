@@ -222,6 +222,32 @@ describe('streamChat SSE parsing', () => {
     expect(doneCount).toBe(1)
   })
 
+  it('parses a CRLF event boundary split between chunks', async () => {
+    ;(globalThis.fetch as any) = vi.fn().mockResolvedValue({
+      ok: true,
+      body: makeStream([
+        'data: {"type":"token","data":"先"}\r\n\r',
+        '\ndata: {"type":"done"}\r\n\r\n',
+      ]),
+    })
+
+    const tokens: string[] = []
+    let doneCount = 0
+    await streamChat(
+      { conversation_id: '1', message: 'x' },
+      {
+        onStage: () => {},
+        onToken: (token) => tokens.push(token),
+        onMeta: () => {},
+        onError: () => {},
+        onDone: () => doneCount++,
+      }
+    )
+
+    expect(tokens).toEqual(['先'])
+    expect(doneCount).toBe(1)
+  })
+
   it('dispatches node_end and reasoning events', async () => {
     const sseData = [
       'data: {"type":"node_end","data":{"node":"rewrite_query","label":"正在理解问题...","duration_ms":120,"output":{"rewritten_query":"什么是 RAG"}}}',
@@ -260,6 +286,26 @@ describe('streamChat SSE parsing', () => {
     expect(reasonings).toEqual(['用户在问 RAG'])
   })
 
+  it('dispatches optional attachment status events without affecting legacy callbacks', async () => {
+    const sseData = [
+      'data: {"type":"attachment","data":{"phase":"parse","status":"ready","attachment_ids":["att_1"],"count":1}}',
+      '',
+      'data: {"type":"done"}',
+      '',
+    ].join('\n')
+    ;(globalThis.fetch as any) = vi.fn().mockResolvedValue({ ok: true, body: makeStream([sseData]) })
+
+    const statuses: unknown[] = []
+    await streamChat(
+      { conversation_id: '1', message: '', attachment_ids: ['att_1'] },
+      {
+        onStage: () => {}, onToken: () => {}, onMeta: () => {}, onError: () => {}, onDone: () => {},
+        onAttachmentStatus: (payload) => statuses.push(payload),
+      },
+    )
+    expect(statuses).toEqual([{ phase: 'parse', status: 'ready', attachment_ids: ['att_1'], count: 1 }])
+  })
+
   it('tolerates missing optional onNodeEnd/onReasoning callbacks', async () => {
     const sseData = [
       'data: {"type":"node_end","data":{"node":"x","label":"y","duration_ms":1,"output":{}}}',
@@ -284,5 +330,84 @@ describe('streamChat SSE parsing', () => {
       }
     )
     expect(done).toBe(true) // 可选回调缺失时不抛错
+  })
+
+  it('reports an interrupted stream when EOF has no terminal payload', async () => {
+    ;(globalThis.fetch as any) = vi.fn().mockResolvedValue({
+      ok: true,
+      // A proxy or an interrupted server may close a valid response without
+      // delivering the final SSE event.
+      body: makeStream(['data: {"type":"token","data":"最后一段"}\n\n']),
+    })
+
+    let doneCount = 0
+    let errorMessage: string | null = null
+    await streamChat(
+      { conversation_id: '1', message: 'x' },
+      {
+        onStage: () => {},
+        onToken: () => {},
+        onMeta: () => {},
+        onError: (message) => { errorMessage = message },
+        onDone: () => { doneCount++ },
+      }
+    )
+
+    expect(doneCount).toBe(1)
+    expect(errorMessage).toBe('流式响应意外中断，请重试')
+  })
+
+  it('accepts EOF after a canonical final event without done', async () => {
+    ;(globalThis.fetch as any) = vi.fn().mockResolvedValue({
+      ok: true,
+      body: makeStream([
+        'data: {"type":"final","data":"完整答案"}\n\n',
+      ]),
+    })
+
+    let finalAnswer: string | null = null
+    let errorMessage: string | null = null
+    await streamChat(
+      { conversation_id: '1', message: 'x' },
+      {
+        onStage: () => {},
+        onToken: () => {},
+        onFinal: (answer) => { finalAnswer = answer },
+        onMeta: () => {},
+        onError: (message) => { errorMessage = message },
+        onDone: () => {},
+      }
+    )
+
+    expect(finalAnswer).toBe('完整答案')
+    expect(errorMessage).toBeNull()
+  })
+
+  it('dispatches a final event so the client can reconcile streamed text', async () => {
+    const sseData = [
+      'data: {"type":"token","data":"重复"}',
+      '',
+      'data: {"type":"final","data":"最终答案"}',
+      '',
+      'data: {"type":"done"}',
+      '',
+    ].join('\n')
+
+    ;(globalThis.fetch as any) = vi.fn().mockResolvedValue({ ok: true, body: makeStream([sseData]) })
+
+    let finalAnswer: string | null = null
+    await streamChat(
+      { conversation_id: '1', message: 'x' },
+      {
+        onStage: () => {},
+        onToken: () => {},
+        onFinal: (answer) => { finalAnswer = answer },
+        onMeta: () => {},
+        onError: () => {},
+        onDone: () => {},
+      }
+    )
+
+    expect(finalAnswer).toBe('最终答案')
   })
 })

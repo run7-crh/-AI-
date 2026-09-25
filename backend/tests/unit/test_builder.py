@@ -39,7 +39,11 @@ def test_route_after_decompose_chitchat_goes_chitchat_node():
 
 def test_route_after_decompose_decomposition_goes_multi_step():
     """需要分解 → multi_step_reason。"""
-    state = {"is_chitchat": False, "needs_decomposition": True}
+    state = {
+        "is_chitchat": False,
+        "needs_decomposition": True,
+        "reasoning_steps": [{"sub_query": "子问题"}],
+    }
     assert route_after_decompose(state) == "multi_step_reason"
 
 
@@ -382,3 +386,19 @@ async def test_build_graph_rag_quality_fail_routes_to_web_search():
     assert "联网答案" in final_state.get("final_answer", "")
     # 验证 CRAG 回路执行：correction_count=1（纠正过一次）
     assert final_state.get("correction_count") == 1
+
+
+def test_route_after_decompose_falls_back_when_steps_are_empty():
+    assert route_after_decompose({
+        "is_chitchat": False,
+        "needs_decomposition": True,
+        "reasoning_steps": [],
+    }) == "judge_relevance"
+
+
+def test_route_after_decompose_uses_multi_step_only_with_executable_step():
+    assert route_after_decompose({
+        "is_chitchat": False,
+        "needs_decomposition": True,
+        "reasoning_steps": [{"sub_query": "LangGraph 是什么"}],
+    }) == "multi_step_reason"

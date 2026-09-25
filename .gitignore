@@ -48,6 +48,10 @@ backend/eval/reports/
 # 操作系统
 Thumbs.db
 
+# Agent 临时工作目录（合并暂存/头脑风暴产物，本地保留即可）
+.task4-stage/
+.superpowers/
+
 # Dify DSL 文件（含原始配置，本地保留即可）
 *.yml
 !docs/**/*.md

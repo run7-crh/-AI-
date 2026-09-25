@@ -3,7 +3,7 @@
 import { ref } from 'vue'
 import type { Message } from '@/types'
 import { useChatStore } from '@/stores/chat'
-import { User, Copy, Check, Pencil } from 'lucide-vue-next'
+import { User, Copy, Check, Pencil, Paperclip } from 'lucide-vue-next'
 
 const props = defineProps<{ message: Message }>()
 const store = useChatStore()
@@ -22,6 +22,19 @@ async function copyContent(text: string) {
 function editMessage() {
   store.editUserMessage(props.message.id)
 }
+
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function attachmentStatus(attachment: NonNullable<Message['attachments']>[number]): string {
+  if (attachment.status === 'expired' || (attachment.expires_at && new Date(attachment.expires_at).getTime() <= Date.now())) return '已过期'
+  if (attachment.status === 'failed' || attachment.extraction_status === 'failed') return '处理失败'
+  if (attachment.status === 'deleted') return '已删除'
+  return attachment.extraction_status === 'pending' ? '解析中' : '已就绪'
+}
 </script>
 
 <template>
@@ -31,6 +44,19 @@ function editMessage() {
         <p class="whitespace-pre-wrap break-words text-sm leading-relaxed">
           {{ message.content }}
         </p>
+      </div>
+
+      <div v-if="message.attachments?.length" class="flex flex-wrap justify-end gap-1.5 max-w-full" data-testid="message-attachments">
+        <div
+          v-for="attachment in message.attachments"
+          :key="attachment.id"
+          class="min-w-0 max-w-full flex items-center gap-1.5 rounded-lg border border-stone-200 bg-stone-50 px-2.5 py-1.5 text-xs text-stone-700"
+        >
+          <Paperclip class="w-3.5 h-3.5 shrink-0 text-stone-500" />
+          <span class="min-w-0 max-w-[12rem] truncate" :title="attachment.original_name">{{ attachment.original_name }}</span>
+          <span class="shrink-0 text-gray-500">{{ attachment.extension.toUpperCase() }} · {{ formatSize(attachment.size_bytes) }}</span>
+          <span class="shrink-0 text-gray-500">{{ attachmentStatus(attachment) }}</span>
+        </div>
       </div>
 
       <!-- 操作菜单 -->

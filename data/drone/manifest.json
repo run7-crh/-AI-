@@ -1,0 +1,1041 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-09-18",
+  "document_count": 70,
+  "documents": [
+    {
+      "document_id": "drone_product_agras_t50",
+      "file_path": "products/drone_product_agras_t50.md",
+      "document_type": "product",
+      "product_model": "agras_t50",
+      "component": "product",
+      "fault_type": "",
+      "source_id": [
+        "SOURCE-034",
+        "SOURCE-035",
+        "SOURCE-036",
+        "SOURCE-037",
+        "SOURCE-038",
+        "SOURCE-039"
+      ],
+      "data_type": "factual",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_product_matrice_350_rtk",
+      "file_path": "products/drone_product_matrice_350_rtk.md",
+      "document_type": "product",
+      "product_model": "matrice_350_rtk",
+      "component": "product",
+      "fault_type": "",
+      "source_id": [
+        "SOURCE-021",
+        "SOURCE-022",
+        "SOURCE-023",
+        "SOURCE-024",
+        "SOURCE-025"
+      ],
+      "data_type": "factual",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_product_mavic_3_enterprise",
+      "file_path": "products/drone_product_mavic_3_enterprise.md",
+      "document_type": "product",
+      "product_model": "mavic_3_enterprise",
+      "component": "product",
+      "fault_type": "",
+      "source_id": [
+        "SOURCE-032"
+      ],
+      "data_type": "factual",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_product_mini_4_pro",
+      "file_path": "products/drone_product_mini_4_pro.md",
+      "document_type": "product",
+      "product_model": "mini_4_pro",
+      "component": "product",
+      "fault_type": "",
+      "source_id": [
+        "SOURCE-001",
+        "SOURCE-002",
+        "SOURCE-003",
+        "SOURCE-005",
+        "SOURCE-010",
+        "SOURCE-016",
+        "SOURCE-017"
+      ],
+      "data_type": "factual",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_technical_compass",
+      "file_path": "technical/drone_technical_compass.md",
+      "document_type": "technical",
+      "product_model": "mini_4_pro",
+      "component": "compass",
+      "fault_type": "",
+      "source_id": [
+        "SOURCE-008"
+      ],
+      "data_type": "factual",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_technical_controllers",
+      "file_path": "technical/drone_technical_controllers.md",
+      "document_type": "technical",
+      "product_model": "all",
+      "component": "remote_controller",
+      "fault_type": "",
+      "source_id": [
+        "SOURCE-002",
+        "SOURCE-017",
+        "SOURCE-021",
+        "SOURCE-022",
+        "SOURCE-034"
+      ],
+      "data_type": "factual",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_technical_firmware",
+      "file_path": "technical/drone_technical_firmware.md",
+      "document_type": "technical",
+      "product_model": "all",
+      "component": "firmware",
+      "fault_type": "",
+      "source_id": [
+        "SOURCE-014",
+        "SOURCE-022",
+        "SOURCE-023",
+        "SOURCE-013"
+      ],
+      "data_type": "factual",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_technical_flight_modes",
+      "file_path": "technical/drone_technical_flight_modes.md",
+      "document_type": "technical",
+      "product_model": "all",
+      "component": "flight_mode",
+      "fault_type": "",
+      "source_id": [
+        "SOURCE-002",
+        "SOURCE-010",
+        "SOURCE-016",
+        "SOURCE-017",
+        "SOURCE-025"
+      ],
+      "data_type": "factual",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_technical_gimbal_camera",
+      "file_path": "technical/drone_technical_gimbal_camera.md",
+      "document_type": "technical",
+      "product_model": "mini_4_pro",
+      "component": "gimbal",
+      "fault_type": "",
+      "source_id": [
+        "SOURCE-002",
+        "SOURCE-003"
+      ],
+      "data_type": "factual",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_technical_gnss_positioning",
+      "file_path": "technical/drone_technical_gnss_positioning.md",
+      "document_type": "technical",
+      "product_model": "all",
+      "component": "gnss",
+      "fault_type": "",
+      "source_id": [
+        "SOURCE-002",
+        "SOURCE-003",
+        "SOURCE-007",
+        "SOURCE-021",
+        "SOURCE-032",
+        "SOURCE-034"
+      ],
+      "data_type": "factual",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_technical_imu",
+      "file_path": "technical/drone_technical_imu.md",
+      "document_type": "technical",
+      "product_model": "mini_4_pro",
+      "component": "imu",
+      "fault_type": "",
+      "source_id": [
+        "SOURCE-009"
+      ],
+      "data_type": "factual",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_technical_power_system",
+      "file_path": "technical/drone_technical_power_system.md",
+      "document_type": "technical",
+      "product_model": "all",
+      "component": "motors",
+      "fault_type": "",
+      "source_id": [
+        "SOURCE-002",
+        "SOURCE-006",
+        "SOURCE-021",
+        "SOURCE-022",
+        "SOURCE-032",
+        "SOURCE-034"
+      ],
+      "data_type": "factual",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_technical_rtk_differential",
+      "file_path": "technical/drone_technical_rtk_differential.md",
+      "document_type": "technical",
+      "product_model": "matrice_350_rtk",
+      "component": "rtk",
+      "fault_type": "",
+      "source_id": [
+        "SOURCE-021",
+        "SOURCE-022",
+        "SOURCE-028",
+        "SOURCE-029",
+        "SOURCE-034",
+        "SOURCE-039"
+      ],
+      "data_type": "factual",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_technical_sensing",
+      "file_path": "technical/drone_technical_sensing.md",
+      "document_type": "technical",
+      "product_model": "all",
+      "component": "sensing",
+      "fault_type": "",
+      "source_id": [
+        "SOURCE-002",
+        "SOURCE-003",
+        "SOURCE-018",
+        "SOURCE-021",
+        "SOURCE-034"
+      ],
+      "data_type": "factual",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_technical_smart_battery",
+      "file_path": "technical/drone_technical_smart_battery.md",
+      "document_type": "technical",
+      "product_model": "all",
+      "component": "battery",
+      "fault_type": "",
+      "source_id": [
+        "SOURCE-002",
+        "SOURCE-003",
+        "SOURCE-005",
+        "SOURCE-021",
+        "SOURCE-022",
+        "SOURCE-027",
+        "SOURCE-030",
+        "SOURCE-034",
+        "SOURCE-036"
+      ],
+      "data_type": "factual",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_technical_transmission",
+      "file_path": "technical/drone_technical_transmission.md",
+      "document_type": "technical",
+      "product_model": "all",
+      "component": "transmission",
+      "fault_type": "",
+      "source_id": [
+        "SOURCE-002",
+        "SOURCE-011",
+        "SOURCE-012",
+        "SOURCE-016",
+        "SOURCE-021"
+      ],
+      "data_type": "factual",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_troubleshooting_abnormal_liftoff",
+      "file_path": "troubleshooting/drone_troubleshooting_liftoff_abnormal.md",
+      "document_type": "troubleshooting",
+      "product_model": "mini_4_pro",
+      "component": "motors",
+      "fault_type": "liftoff_abnormal",
+      "source_id": [
+        "SOURCE-006"
+      ],
+      "data_type": "factual",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_troubleshooting_aircraft_disconnected",
+      "file_path": "troubleshooting/drone_troubleshooting_aircraft_disconnected.md",
+      "document_type": "troubleshooting",
+      "product_model": "mini_4_pro",
+      "component": "remote_controller",
+      "fault_type": "aircraft_disconnected",
+      "source_id": [
+        "SOURCE-013"
+      ],
+      "data_type": "factual",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_troubleshooting_battery_not_charging",
+      "file_path": "troubleshooting/drone_troubleshooting_battery_not_charging.md",
+      "document_type": "troubleshooting",
+      "product_model": "mini_4_pro",
+      "component": "battery",
+      "fault_type": "battery_charging_abnormal",
+      "source_id": [
+        "SOURCE-005"
+      ],
+      "data_type": "factual",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_troubleshooting_battery_swelling",
+      "file_path": "troubleshooting/drone_troubleshooting_battery_swelling.md",
+      "document_type": "troubleshooting",
+      "product_model": "all",
+      "component": "battery",
+      "fault_type": "battery_swelling",
+      "source_id": [
+        "SOURCE-027",
+        "SOURCE-030",
+        "SOURCE-036"
+      ],
+      "data_type": "factual",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_troubleshooting_compass_abnormal",
+      "file_path": "troubleshooting/drone_troubleshooting_compass_abnormal.md",
+      "document_type": "troubleshooting",
+      "product_model": "mini_4_pro",
+      "component": "compass",
+      "fault_type": "compass_abnormal",
+      "source_id": [
+        "SOURCE-008"
+      ],
+      "data_type": "factual",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_troubleshooting_firmware_update_failed",
+      "file_path": "troubleshooting/drone_troubleshooting_firmware_update_failed.md",
+      "document_type": "troubleshooting",
+      "product_model": "mini_4_pro",
+      "component": "firmware",
+      "fault_type": "firmware_update_abnormal",
+      "source_id": [
+        "SOURCE-014"
+      ],
+      "data_type": "factual",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_troubleshooting_gps_abnormal",
+      "file_path": "troubleshooting/drone_troubleshooting_gps_abnormal.md",
+      "document_type": "troubleshooting",
+      "product_model": "all",
+      "component": "gnss",
+      "fault_type": "gps_abnormal",
+      "source_id": [
+        "SOURCE-007"
+      ],
+      "data_type": "factual",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_troubleshooting_imu_abnormal",
+      "file_path": "troubleshooting/drone_troubleshooting_imu_abnormal.md",
+      "document_type": "troubleshooting",
+      "product_model": "mini_4_pro",
+      "component": "imu",
+      "fault_type": "imu_abnormal",
+      "source_id": [
+        "SOURCE-009"
+      ],
+      "data_type": "factual",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_troubleshooting_link_fail",
+      "file_path": "troubleshooting/drone_troubleshooting_link_fail.md",
+      "document_type": "troubleshooting",
+      "product_model": "mini_4_pro",
+      "component": "remote_controller",
+      "fault_type": "link_fail",
+      "source_id": [
+        "SOURCE-015"
+      ],
+      "data_type": "factual",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_troubleshooting_rc_signal_weak",
+      "file_path": "troubleshooting/drone_troubleshooting_rc_signal_weak.md",
+      "document_type": "troubleshooting",
+      "product_model": "mini_4_pro",
+      "component": "remote_controller",
+      "fault_type": "rc_signal_weak",
+      "source_id": [
+        "SOURCE-012"
+      ],
+      "data_type": "factual",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_troubleshooting_rtk_signal_weak",
+      "file_path": "troubleshooting/drone_troubleshooting_rtk_signal_weak.md",
+      "document_type": "troubleshooting",
+      "product_model": "matrice_350_rtk",
+      "component": "rtk",
+      "fault_type": "rtk_signal_abnormal",
+      "source_id": [
+        "SOURCE-028",
+        "SOURCE-029"
+      ],
+      "data_type": "factual",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_troubleshooting_video_blackout",
+      "file_path": "troubleshooting/drone_troubleshooting_video_blackout.md",
+      "document_type": "troubleshooting",
+      "product_model": "mini_4_pro",
+      "component": "transmission",
+      "fault_type": "video_blackout",
+      "source_id": [
+        "SOURCE-011"
+      ],
+      "data_type": "factual",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_troubleshooting_vision_calibration",
+      "file_path": "troubleshooting/drone_troubleshooting_vision_calibration.md",
+      "document_type": "troubleshooting",
+      "product_model": "matrice_350_rtk",
+      "component": "sensing",
+      "fault_type": "vision_calibration",
+      "source_id": [
+        "SOURCE-024",
+        "SOURCE-025"
+      ],
+      "data_type": "factual",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_sop_agri_battery_safe",
+      "file_path": "sop/drone_sop_agri_battery_safe.md",
+      "document_type": "sop",
+      "product_model": "agras_t50",
+      "component": "battery",
+      "fault_type": "",
+      "source_id": [
+        "SOURCE-036",
+        "SOURCE-034"
+      ],
+      "data_type": "factual",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_sop_battery_check",
+      "file_path": "sop/drone_sop_battery_check.md",
+      "document_type": "sop",
+      "product_model": "mini_4_pro",
+      "component": "battery",
+      "fault_type": "",
+      "source_id": [
+        "SOURCE-002",
+        "SOURCE-003",
+        "SOURCE-005",
+        "SOURCE-030"
+      ],
+      "data_type": "factual",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_sop_compass_calibration",
+      "file_path": "sop/drone_sop_compass_calibration.md",
+      "document_type": "sop",
+      "product_model": "mini_4_pro",
+      "component": "compass",
+      "fault_type": "",
+      "source_id": [
+        "SOURCE-008"
+      ],
+      "data_type": "factual",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_sop_gps_troubleshoot",
+      "file_path": "sop/drone_sop_gps_troubleshoot.md",
+      "document_type": "sop",
+      "product_model": "all",
+      "component": "gnss",
+      "fault_type": "",
+      "source_id": [
+        "SOURCE-007"
+      ],
+      "data_type": "factual",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_sop_imu_calibration",
+      "file_path": "sop/drone_sop_imu_calibration.md",
+      "document_type": "sop",
+      "product_model": "mini_4_pro",
+      "component": "imu",
+      "fault_type": "",
+      "source_id": [
+        "SOURCE-009"
+      ],
+      "data_type": "factual",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_sop_link_pairing",
+      "file_path": "sop/drone_sop_link_pairing.md",
+      "document_type": "sop",
+      "product_model": "mini_4_pro",
+      "component": "remote_controller",
+      "fault_type": "",
+      "source_id": [
+        "SOURCE-015",
+        "SOURCE-013"
+      ],
+      "data_type": "factual",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_sop_preflight_check",
+      "file_path": "sop/drone_sop_preflight_check.md",
+      "document_type": "sop",
+      "product_model": "mini_4_pro",
+      "component": "product",
+      "fault_type": "",
+      "source_id": [
+        "SOURCE-003",
+        "SOURCE-004",
+        "SOURCE-016",
+        "SOURCE-018",
+        "SOURCE-019"
+      ],
+      "data_type": "factual",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_sop_rth_config",
+      "file_path": "sop/drone_sop_rth_config.md",
+      "document_type": "sop",
+      "product_model": "mini_4_pro",
+      "component": "flight_mode",
+      "fault_type": "",
+      "source_id": [
+        "SOURCE-010",
+        "SOURCE-016"
+      ],
+      "data_type": "factual",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_sop_video_link_troubleshoot",
+      "file_path": "sop/drone_sop_video_link_troubleshoot.md",
+      "document_type": "sop",
+      "product_model": "mini_4_pro",
+      "component": "transmission",
+      "fault_type": "",
+      "source_id": [
+        "SOURCE-011",
+        "SOURCE-012"
+      ],
+      "data_type": "factual",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_safety_abnormal_flight",
+      "file_path": "safety/drone_safety_abnormal_flight.md",
+      "document_type": "safety",
+      "product_model": "all",
+      "component": "flight_safety",
+      "fault_type": "",
+      "source_id": [
+        "SOURCE-007",
+        "SOURCE-010",
+        "SOURCE-012",
+        "SOURCE-016"
+      ],
+      "data_type": "factual",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_safety_agri_operation",
+      "file_path": "safety/drone_safety_agri_operation.md",
+      "document_type": "safety",
+      "product_model": "agras_t50",
+      "component": "flight_safety",
+      "fault_type": "",
+      "source_id": [
+        "SOURCE-034",
+        "SOURCE-036",
+        "SOURCE-038",
+        "SOURCE-045",
+        "SOURCE-046"
+      ],
+      "data_type": "factual",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_safety_battery",
+      "file_path": "safety/drone_safety_battery.md",
+      "document_type": "safety",
+      "product_model": "all",
+      "component": "battery",
+      "fault_type": "",
+      "source_id": [
+        "SOURCE-036",
+        "SOURCE-030",
+        "SOURCE-022",
+        "SOURCE-027"
+      ],
+      "data_type": "factual",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_safety_caac_compliance",
+      "file_path": "safety/drone_safety_caac_compliance.md",
+      "document_type": "safety",
+      "product_model": "all",
+      "component": "regulatory",
+      "fault_type": "",
+      "source_id": [
+        "SOURCE-040",
+        "SOURCE-041",
+        "SOURCE-042",
+        "SOURCE-043",
+        "SOURCE-044",
+        "SOURCE-045",
+        "SOURCE-046",
+        "SOURCE-047",
+        "SOURCE-048"
+      ],
+      "data_type": "factual",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_safety_env_limits",
+      "file_path": "safety/drone_safety_env_limits.md",
+      "document_type": "safety",
+      "product_model": "all",
+      "component": "flight_safety",
+      "fault_type": "",
+      "source_id": [
+        "SOURCE-002",
+        "SOURCE-007",
+        "SOURCE-021",
+        "SOURCE-022",
+        "SOURCE-034"
+      ],
+      "data_type": "factual",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_safety_flight_basics",
+      "file_path": "safety/drone_safety_flight_basics.md",
+      "document_type": "safety",
+      "product_model": "all",
+      "component": "flight_safety",
+      "fault_type": "",
+      "source_id": [
+        "SOURCE-002",
+        "SOURCE-003",
+        "SOURCE-016",
+        "SOURCE-018"
+      ],
+      "data_type": "factual",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_case_s001_drift_right",
+      "file_path": "cases/drone_case_s001_drift_right.md",
+      "document_type": "case",
+      "product_model": "mini_4_pro",
+      "component": "compass",
+      "fault_type": "compass_abnormal",
+      "source_id": [
+        "SOURCE-008",
+        "SOURCE-007"
+      ],
+      "data_type": "synthetic",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_case_s002_gps_weak",
+      "file_path": "cases/drone_case_s002_gps_weak.md",
+      "document_type": "case",
+      "product_model": "mini_4_pro",
+      "component": "gnss",
+      "fault_type": "gps_abnormal",
+      "source_id": [
+        "SOURCE-007"
+      ],
+      "data_type": "synthetic",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_case_s003_imu_fail",
+      "file_path": "cases/drone_case_s003_imu_fail.md",
+      "document_type": "case",
+      "product_model": "mini_4_pro",
+      "component": "imu",
+      "fault_type": "imu_abnormal",
+      "source_id": [
+        "SOURCE-009"
+      ],
+      "data_type": "synthetic",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_case_s004_video_blackout",
+      "file_path": "cases/drone_case_s004_video_blackout.md",
+      "document_type": "case",
+      "product_model": "mini_4_pro",
+      "component": "transmission",
+      "fault_type": "video_blackout",
+      "source_id": [
+        "SOURCE-011"
+      ],
+      "data_type": "synthetic",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_case_s005_rc_link_lost",
+      "file_path": "cases/drone_case_s005_rc_link_lost.md",
+      "document_type": "case",
+      "product_model": "mini_4_pro",
+      "component": "remote_controller",
+      "fault_type": "rc_signal_weak",
+      "source_id": [
+        "SOURCE-012",
+        "SOURCE-016"
+      ],
+      "data_type": "synthetic",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_case_s006_liftoff_fail",
+      "file_path": "cases/drone_case_s006_liftoff_fail.md",
+      "document_type": "case",
+      "product_model": "mini_4_pro",
+      "component": "motors",
+      "fault_type": "liftoff_abnormal",
+      "source_id": [
+        "SOURCE-006"
+      ],
+      "data_type": "synthetic",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_case_s007_battery_sleep",
+      "file_path": "cases/drone_case_s007_battery_sleep.md",
+      "document_type": "case",
+      "product_model": "mini_4_pro",
+      "component": "battery",
+      "fault_type": "battery_charging_abnormal",
+      "source_id": [
+        "SOURCE-003",
+        "SOURCE-005"
+      ],
+      "data_type": "synthetic",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_case_s008_firmware_stuck",
+      "file_path": "cases/drone_case_s008_firmware_stuck.md",
+      "document_type": "case",
+      "product_model": "mini_4_pro",
+      "component": "firmware",
+      "fault_type": "firmware_update_abnormal",
+      "source_id": [
+        "SOURCE-014"
+      ],
+      "data_type": "synthetic",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_case_s009_pairing_after_repair",
+      "file_path": "cases/drone_case_s009_pairing_after_repair.md",
+      "document_type": "case",
+      "product_model": "mini_4_pro",
+      "component": "remote_controller",
+      "fault_type": "link_fail",
+      "source_id": [
+        "SOURCE-015",
+        "SOURCE-013"
+      ],
+      "data_type": "synthetic",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_case_s010_rtk_weak_m350",
+      "file_path": "cases/drone_case_s010_rtk_weak_m350.md",
+      "document_type": "case",
+      "product_model": "matrice_350_rtk",
+      "component": "rtk",
+      "fault_type": "rtk_signal_abnormal",
+      "source_id": [
+        "SOURCE-028"
+      ],
+      "data_type": "synthetic",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_case_s011_network_rtk",
+      "file_path": "cases/drone_case_s011_network_rtk.md",
+      "document_type": "case",
+      "product_model": "matrice_350_rtk",
+      "component": "rtk",
+      "fault_type": "rtk_signal_abnormal",
+      "source_id": [
+        "SOURCE-022",
+        "SOURCE-029"
+      ],
+      "data_type": "synthetic",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_case_s012_battery_swelling_suspect",
+      "file_path": "cases/drone_case_s012_battery_swelling_suspect.md",
+      "document_type": "case",
+      "product_model": "mini_4_pro",
+      "component": "battery",
+      "fault_type": "battery_swelling",
+      "source_id": [
+        "SOURCE-030"
+      ],
+      "data_type": "synthetic",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_case_s013_vision_calibration_m350",
+      "file_path": "cases/drone_case_s013_vision_calibration_m350.md",
+      "document_type": "case",
+      "product_model": "matrice_350_rtk",
+      "component": "sensing",
+      "fault_type": "vision_calibration",
+      "source_id": [
+        "SOURCE-025"
+      ],
+      "data_type": "synthetic",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_case_s014_agri_rtk_interrupt",
+      "file_path": "cases/drone_case_s014_agri_rtk_interrupt.md",
+      "document_type": "case",
+      "product_model": "agras_t50",
+      "component": "rtk",
+      "fault_type": "rtk_signal_abnormal",
+      "source_id": [
+        "SOURCE-034",
+        "SOURCE-029"
+      ],
+      "data_type": "synthetic",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_case_s015_agri_battery_corrosion",
+      "file_path": "cases/drone_case_s015_agri_battery_corrosion.md",
+      "document_type": "case",
+      "product_model": "agras_t50",
+      "component": "battery",
+      "fault_type": "battery_charging_abnormal",
+      "source_id": [
+        "SOURCE-036"
+      ],
+      "data_type": "synthetic",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_case_s016_low_battery_forced_land",
+      "file_path": "cases/drone_case_s016_low_battery_forced_land.md",
+      "document_type": "case",
+      "product_model": "mini_4_pro",
+      "component": "battery",
+      "fault_type": "battery_management",
+      "source_id": [
+        "SOURCE-010"
+      ],
+      "data_type": "synthetic",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_case_s017_rth_on_link_loss",
+      "file_path": "cases/drone_case_s017_rth_on_link_loss.md",
+      "document_type": "case",
+      "product_model": "mini_4_pro",
+      "component": "flight_mode",
+      "fault_type": "rth_trigger",
+      "source_id": [
+        "SOURCE-010",
+        "SOURCE-016"
+      ],
+      "data_type": "synthetic",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_case_s018_low_temp_battery",
+      "file_path": "cases/drone_case_s018_low_temp_battery.md",
+      "document_type": "case",
+      "product_model": "mini_4_pro",
+      "component": "battery",
+      "fault_type": "environmental_impact",
+      "source_id": [
+        "SOURCE-002"
+      ],
+      "data_type": "synthetic",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_case_s019_sport_obstacle",
+      "file_path": "cases/drone_case_s019_sport_obstacle.md",
+      "document_type": "case",
+      "product_model": "mini_4_pro",
+      "component": "flight_mode",
+      "fault_type": "flight_mode_misuse",
+      "source_id": [
+        "SOURCE-017"
+      ],
+      "data_type": "synthetic",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_case_s020_indoor_drift",
+      "file_path": "cases/drone_case_s020_indoor_drift.md",
+      "document_type": "case",
+      "product_model": "mini_4_pro",
+      "component": "sensing",
+      "fault_type": "vision_resolution_limit",
+      "source_id": [
+        "SOURCE-003",
+        "SOURCE-018"
+      ],
+      "data_type": "synthetic",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_case_s021_registration",
+      "file_path": "cases/drone_case_s021_registration.md",
+      "document_type": "case",
+      "product_model": "mini_4_pro",
+      "component": "regulatory",
+      "fault_type": "compliance",
+      "source_id": [
+        "SOURCE-040",
+        "SOURCE-043",
+        "SOURCE-048"
+      ],
+      "data_type": "synthetic",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_case_s022_agri_license",
+      "file_path": "cases/drone_case_s022_agri_license.md",
+      "document_type": "case",
+      "product_model": "agras_t50",
+      "component": "regulatory",
+      "fault_type": "compliance",
+      "source_id": [
+        "SOURCE-045",
+        "SOURCE-046"
+      ],
+      "data_type": "synthetic",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_case_s023_battery_heat_sun",
+      "file_path": "cases/drone_case_s023_battery_heat_sun.md",
+      "document_type": "case",
+      "product_model": "agras_t50",
+      "component": "battery",
+      "fault_type": "thermal_hazard",
+      "source_id": [
+        "SOURCE-034",
+        "SOURCE-036"
+      ],
+      "data_type": "synthetic",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_case_s024_disconnected",
+      "file_path": "cases/drone_case_s024_disconnected.md",
+      "document_type": "case",
+      "product_model": "mini_4_pro",
+      "component": "remote_controller",
+      "fault_type": "aircraft_disconnected",
+      "source_id": [
+        "SOURCE-013"
+      ],
+      "data_type": "synthetic",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_case_s025_obstacle_speed_limit",
+      "file_path": "cases/drone_case_s025_obstacle_speed_limit.md",
+      "document_type": "case",
+      "product_model": "mini_4_pro",
+      "component": "sensing",
+      "fault_type": "vision_resolution_limit",
+      "source_id": [
+        "SOURCE-002",
+        "SOURCE-017"
+      ],
+      "data_type": "synthetic",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_case_s026_wind_resistance",
+      "file_path": "cases/drone_case_s026_wind_resistance.md",
+      "document_type": "case",
+      "product_model": "mini_4_pro",
+      "component": "flight_mode",
+      "fault_type": "environmental_impact",
+      "source_id": [
+        "SOURCE-002"
+      ],
+      "data_type": "synthetic",
+      "version": "1.0"
+    },
+    {
+      "document_id": "drone_sop_rth_config_m350",
+      "file_path": "sop/drone_sop_rth_config_m350.md",
+      "document_type": "sop",
+      "product_model": "matrice_350_rtk",
+      "component": "flight_mode",
+      "fault_type": "",
+      "source_id": [
+        "SOURCE-025"
+      ],
+      "data_type": "factual",
+      "version": "1.0"
+    }
+  ]
+}

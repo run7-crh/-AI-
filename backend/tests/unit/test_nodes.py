@@ -195,6 +195,40 @@ async def test_decompose_question_node_explicit_respective():
     assert len(result["reasoning_steps"]) == 3
 
 
+@pytest.mark.asyncio
+async def test_decompose_question_node_handles_malformed_structured_output():
+    """结构化输出缺字段时应安全降级到普通问题，而不是让 SSE 直接失败。"""
+    state = AgentState(
+        query="x", conversation_id="c1", history=[],
+        rewritten_query="测试", judge_log=[],
+    )
+    with patch("app.graph.nodes.call_llm", new_callable=AsyncMock) as mock_llm:
+        mock_llm.return_value = {"text": "", "structured": {"is_chitchat": "maybe"}}
+        result = await decompose_question_node(state)
+    assert result == {
+        "is_chitchat": False,
+        "needs_decomposition": False,
+        "reasoning_steps": [],
+    }
+
+
+@pytest.mark.asyncio
+async def test_decompose_question_node_handles_structured_call_failure():
+    """模型结构化调用抛错时也应回退到普通相关性判断。"""
+    state = AgentState(
+        query="x", conversation_id="c1", history=[],
+        rewritten_query="测试", judge_log=[],
+    )
+    with patch("app.graph.nodes.call_llm", new_callable=AsyncMock) as mock_llm:
+        mock_llm.side_effect = ValueError("invalid structured output")
+        result = await decompose_question_node(state)
+    assert result == {
+        "is_chitchat": False,
+        "needs_decomposition": False,
+        "reasoning_steps": [],
+    }
+
+
 # ============================================================================
 # judge_relevance_node（轻量检索+阈值短路，修复 🔴 误判）
 # ============================================================================
@@ -314,8 +348,14 @@ async def test_judge_relevance_uses_rewritten_query_for_retrieval():
         query="原始", conversation_id="c1", history=[],
         rewritten_query="改写后的完整问题", judge_log=[],
     )
-    with patch("app.graph.nodes.retrieve", new_callable=AsyncMock) as mock_ret:
+    with patch("app.graph.nodes.retrieve", new_callable=AsyncMock) as mock_ret, \
+         patch("app.graph.nodes.evaluate", new_callable=AsyncMock) as mock_eval:
         mock_ret.return_value = []
+        mock_eval.return_value = {
+            "passed": False,
+            "judge_type": "is_relevant",
+            "raw_output": {"reason": "test"},
+        }
         await judge_relevance_node(state, mock_retriever)
     # P1-4: retrieve 被调用两次（轻量 top_k=1 + 完整 top_k=3）
     assert mock_ret.call_count == 2
@@ -448,9 +488,12 @@ async def test_web_search_node_writes_web_search_result():
         rewritten_query="最新新闻", judge_log=[],
     )
     with patch("app.graph.nodes.tavily_search", new_callable=AsyncMock) as mock_ts:
-        mock_ts.return_value = "[1] 新闻内容"
+        mock_ts.return_value = [{
+            "source_type": "web", "title": "新闻", "url": "https://example.com",
+            "source": "新闻", "content": "新闻内容",
+        }]
         result = await web_search_node(state)
-    assert result["web_search_result"] == "[1] 新闻内容"
+    assert result["web_search_result"][0]["content"] == "新闻内容"
 
 
 # ============================================================================
@@ -617,6 +660,58 @@ async def test_multi_step_reason_node_fallback_on_error():
     assert result["route_path"] == "decomposition"
 
 
+@pytest.mark.asyncio
+async def test_multi_step_reason_node_fills_missing_subquery_from_web():
+    """多步问题中本地无命中的子问题应补充 Web 证据。"""
+    state = AgentState(
+        query="对比本地主题和最新资料", conversation_id="c1", history=[],
+        rewritten_query="对比本地主题和最新资料",
+        needs_decomposition=True,
+        reasoning_steps=[{"sub_query": "本地主题"}, {"sub_query": "最新资料"}],
+        judge_log=[],
+    )
+    mock_retriever = MagicMock()
+    with patch("app.graph.nodes.retrieve", new_callable=AsyncMock) as mock_ret, \
+         patch("app.graph.nodes.tavily_search", new_callable=AsyncMock) as mock_search, \
+         patch("app.graph.nodes.call_llm", new_callable=AsyncMock) as mock_llm:
+        # 第一个子问题命中本地，第二个需要联网补充。
+        mock_ret.side_effect = [
+            [{"content": "本地内容", "source": "local.md", "title": "Local", "score": 0.8}],
+            [],
+        ]
+        mock_search.return_value = [{
+            "source_type": "web", "source": "web", "title": "官方资料",
+            "url": "https://example.com", "content": "最新内容", "score": None,
+        }]
+        mock_llm.return_value = {"text": "综合答案", "structured": None}
+        result = await multi_step_reason_node(state, None, rag_retriever=mock_retriever)
+
+    mock_search.assert_awaited_once_with("最新资料")
+    assert result["route_path"] == "decomposition"
+    assert any(r.get("source") == "local.md" for r in result["retrieval_result"])
+    assert any(r.get("source_type") == "web" for r in result["retrieval_result"])
+    assert result["web_search_result"][0]["url"] == "https://example.com"
+
+
+@pytest.mark.asyncio
+async def test_multi_step_reason_node_does_not_search_when_all_subqueries_hit():
+    """所有子问题都有本地证据时，不产生不必要的外部调用。"""
+    state = AgentState(
+        query="对比 A 和 B", conversation_id="c1", history=[],
+        rewritten_query="对比 A 和 B", needs_decomposition=True,
+        reasoning_steps=[{"sub_query": "A"}, {"sub_query": "B"}], judge_log=[],
+    )
+    mock_retriever = MagicMock()
+    with patch("app.graph.nodes.retrieve", new_callable=AsyncMock) as mock_ret, \
+         patch("app.graph.nodes.tavily_search", new_callable=AsyncMock) as mock_search, \
+         patch("app.graph.nodes.call_llm", new_callable=AsyncMock) as mock_llm:
+        mock_ret.return_value = [{"content": "命中", "source": "a.md", "title": "A", "score": 0.8}]
+        mock_llm.return_value = {"text": "答案", "structured": None}
+        await multi_step_reason_node(state, None, rag_retriever=mock_retriever)
+
+    mock_search.assert_not_awaited()
+
+
 # ============================================================================
 # combined_quality_check_node（P1-1 合并幻觉+质量）
 # ============================================================================
@@ -692,7 +787,7 @@ async def test_combined_quality_check_has_hallucination_fails():
 
 @pytest.mark.asyncio
 async def test_combined_quality_check_fallback_on_error():
-    """评估失败时降级到不通过（保守策略）。"""
+    """评估器失败时保持幻觉未知，不把基础设施错误当成幻觉。"""
     state = AgentState(
         query="x", conversation_id="c1", history=[],
         rewritten_query="测试",
@@ -705,8 +800,9 @@ async def test_combined_quality_check_fallback_on_error():
         mock_llm.side_effect = Exception("LLM 调用失败")
         result = await combined_quality_check_node(state)
 
-    assert result["has_hallucination"] is True
+    assert result["has_hallucination"] is None
     assert result["answer_quality_pass"] is False
+    assert result["quality_check_error"] == "Exception"
     assert result["judge_log"][0]["passed"] is False
 
 
@@ -747,6 +843,18 @@ async def test_quality_fail_node_quality_warning():
     result = await quality_fail_node(state)
     assert "final_answer" not in result
     assert "质量评估未通过" in result["quality_warning"]
+
+
+@pytest.mark.asyncio
+async def test_quality_fail_node_reports_checker_error_separately():
+    state = AgentState(
+        query="x", conversation_id="c1", history=[],
+        rewritten_query="测试", route_path="local", final_answer="原始答案",
+        has_hallucination=None, answer_quality_pass=False,
+        quality_check_error="TimeoutError", judge_log=[],
+    )
+    result = await quality_fail_node(state)
+    assert "检查暂时不可用" in result["quality_warning"]
 
 
 # ============================================================================

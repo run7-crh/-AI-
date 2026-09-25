@@ -7,10 +7,17 @@ def test_chat_request_valid():
     req = ChatRequest(conversation_id="abc", message="你好")
     assert req.conversation_id == "abc"
     assert req.message == "你好"
+    assert req.attachment_ids is None
 
 def test_chat_request_rejects_empty_message():
     with pytest.raises(ValidationError):
         ChatRequest(conversation_id="abc", message="")
+
+
+def test_chat_request_allows_empty_message_when_attachment_is_selected():
+    req = ChatRequest(conversation_id="abc", message="", attachment_ids=["att_1"])
+    assert req.message == ""
+    assert req.attachment_ids == ["att_1"]
 
 def test_chat_request_rejects_too_long_message():
     with pytest.raises(ValidationError):

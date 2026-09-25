@@ -1,1576 +1,992 @@
 {
-  "version": "1.1",
-  "created_at": "2026-08-10T16:27:04.536416+08:00",
+  "version": "2.0-drone-after-sales",
+  "schema": {
+    "name": "drone_after_sales_eval",
+    "retrieval_gold": "expected_documents (文档级；当前为 inferred，需人工复核)",
+    "answer_gold": "reference_answer (未提供时 answer_f1 为 null)",
+    "structured_gold": [
+      "expected_intent",
+      "expected_product_model",
+      "document_type_priority",
+      "expected_safety_level",
+      "expected_escalation"
+    ]
+  },
+  "created_at": "2026-09-19T11:58:34.803823+08:00",
   "source_distribution": {
-    "seed": 99,
+    "drone_seed": 34,
     "ai_expanded": 0,
     "from_query_log": 0
   },
+  "category_counts": {
+    "product_parameter": 1,
+    "troubleshooting": 4,
+    "flight_safety": 6,
+    "sop_operation": 5,
+    "technical_principle": 2,
+    "cross_model_trap": 3,
+    "product_model": 2,
+    "compliance_regulation": 1,
+    "chitchat": 2,
+    "time_sensitive": 2,
+    "knowledge_gap": 1,
+    "synthetic_case": 3,
+    "escalation": 2
+  },
   "questions": [
     {
-      "id": "q001",
-      "question": "RAG 是什么？它主要解决大模型的哪些问题？",
-      "acceptable_routes": [
-        "local"
-      ],
-      "expected_answer_keywords": [
-        "RAG"
-      ],
-      "expected_source": "RAG 检索增强生成.md",
+      "id": "drone-001",
+      "question": "Mini 4 Pro 的重量和续航参数是什么？",
+      "category": "product_parameter",
       "difficulty": "easy",
-      "category": "knowledge_hit",
-      "source_type": "seed"
-    },
-    {
-      "id": "q002",
-      "question": "什么是 Agent 智能体？跟普通聊天机器人有啥区别？",
+      "expected_route": "local",
       "acceptable_routes": [
         "local"
       ],
-      "expected_answer_keywords": [
-        "Agent",
-        "普通聊",
-        "通聊天",
-        "普通",
-        "通聊",
-        "聊天"
+      "expected_documents": [
+        "drone_product_mini_4_pro.md"
       ],
-      "expected_source": "Agent智能体.md",
+      "expected_source": "drone_product_mini_4_pro.md",
+      "expected_product_model": "mini_4_pro",
+      "expected_intent": "product_parameter",
+      "expected_safety_level": "none",
+      "expected_escalation": false,
+      "document_type_priority": [
+        "product",
+        "technical"
+      ],
+      "gold_status": "inferred",
+      "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
+      "reference_answer": null,
+      "expected_answer_keywords": [],
+      "keyword_eval": false,
+      "source_type": "drone_seed"
+    },
+    {
+      "id": "drone-002",
+      "question": "Matrice 350 RTK 的 RTK 弱信号怎么排查？",
+      "category": "troubleshooting",
+      "difficulty": "medium",
+      "expected_route": "local",
+      "acceptable_routes": [
+        "local"
+      ],
+      "expected_documents": [
+        "drone_troubleshooting_rtk_signal_weak.md",
+        "drone_sop_gps_troubleshoot.md"
+      ],
+      "expected_source": "drone_troubleshooting_rtk_signal_weak.md",
+      "expected_product_model": "matrice_350_rtk",
+      "expected_intent": "troubleshooting",
+      "expected_safety_level": "none",
+      "expected_escalation": false,
+      "document_type_priority": [
+        "troubleshooting",
+        "sop",
+        "case"
+      ],
+      "gold_status": "inferred",
+      "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
+      "reference_answer": null,
+      "expected_answer_keywords": [],
+      "keyword_eval": false,
+      "source_type": "drone_seed"
+    },
+    {
+      "id": "drone-003",
+      "question": "Agras T50 电池疑似鼓包，应该怎么处理？",
+      "category": "flight_safety",
+      "difficulty": "hard",
+      "expected_route": "local",
+      "acceptable_routes": [
+        "local"
+      ],
+      "expected_documents": [
+        "drone_safety_battery.md",
+        "drone_troubleshooting_battery_swelling.md"
+      ],
+      "expected_source": "drone_safety_battery.md",
+      "expected_product_model": "agras_t50",
+      "expected_intent": "flight_safety",
+      "expected_safety_level": "high",
+      "expected_escalation": true,
+      "document_type_priority": [
+        "safety",
+        "troubleshooting",
+        "sop"
+      ],
+      "gold_status": "inferred",
+      "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
+      "reference_answer": null,
+      "expected_answer_keywords": [],
+      "keyword_eval": false,
+      "source_type": "drone_seed"
+    },
+    {
+      "id": "drone-004",
+      "question": "Mini 4 Pro 指南针如何校准？",
+      "category": "sop_operation",
       "difficulty": "easy",
-      "category": "knowledge_hit",
-      "source_type": "seed"
-    },
-    {
-      "id": "q003",
-      "question": "向量数据库和传统数据库有啥本质区别？",
+      "expected_route": "local",
       "acceptable_routes": [
         "local"
       ],
-      "expected_answer_keywords": [
-        "向量数",
-        "量数据",
-        "数据库",
-        "传统数",
-        "统数据",
-        "向量"
+      "expected_documents": [
+        "drone_sop_compass_calibration.md",
+        "drone_technical_compass.md"
       ],
-      "expected_source": "向量数据库.md",
+      "expected_source": "drone_sop_compass_calibration.md",
+      "expected_product_model": "mini_4_pro",
+      "expected_intent": "sop_operation",
+      "expected_safety_level": "none",
+      "expected_escalation": false,
+      "document_type_priority": [
+        "sop",
+        "troubleshooting"
+      ],
+      "gold_status": "inferred",
+      "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
+      "reference_answer": null,
+      "expected_answer_keywords": [],
+      "keyword_eval": false,
+      "source_type": "drone_seed"
+    },
+    {
+      "id": "drone-005",
+      "question": "Mini 4 Pro 指南针异常应该先检查什么？",
+      "category": "troubleshooting",
+      "difficulty": "medium",
+      "expected_route": "local",
+      "acceptable_routes": [
+        "local"
+      ],
+      "expected_documents": [
+        "drone_troubleshooting_compass_abnormal.md",
+        "drone_sop_compass_calibration.md"
+      ],
+      "expected_source": "drone_troubleshooting_compass_abnormal.md",
+      "expected_product_model": "mini_4_pro",
+      "expected_intent": "troubleshooting",
+      "expected_safety_level": "none",
+      "expected_escalation": false,
+      "document_type_priority": [
+        "troubleshooting",
+        "sop",
+        "case"
+      ],
+      "gold_status": "inferred",
+      "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
+      "reference_answer": null,
+      "expected_answer_keywords": [],
+      "keyword_eval": false,
+      "source_type": "drone_seed"
+    },
+    {
+      "id": "drone-006",
+      "question": "Matrice 350 RTK 的 RTK 原理是什么？",
+      "category": "technical_principle",
+      "difficulty": "medium",
+      "expected_route": "local",
+      "acceptable_routes": [
+        "local"
+      ],
+      "expected_documents": [
+        "drone_technical_rtk_differential.md"
+      ],
+      "expected_source": "drone_technical_rtk_differential.md",
+      "expected_product_model": "matrice_350_rtk",
+      "expected_intent": "technical_principle",
+      "expected_safety_level": "none",
+      "expected_escalation": false,
+      "document_type_priority": [
+        "technical",
+        "product"
+      ],
+      "gold_status": "inferred",
+      "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
+      "reference_answer": null,
+      "expected_answer_keywords": [],
+      "keyword_eval": false,
+      "source_type": "drone_seed"
+    },
+    {
+      "id": "drone-007",
+      "question": "Agras T50 电池腐蚀还能继续飞吗？",
+      "category": "flight_safety",
+      "difficulty": "hard",
+      "expected_route": "local",
+      "acceptable_routes": [
+        "local"
+      ],
+      "expected_documents": [
+        "drone_safety_battery.md",
+        "drone_sop_agri_battery_safe.md"
+      ],
+      "expected_source": "drone_safety_battery.md",
+      "expected_product_model": "agras_t50",
+      "expected_intent": "flight_safety",
+      "expected_safety_level": "high",
+      "expected_escalation": true,
+      "document_type_priority": [
+        "safety",
+        "troubleshooting",
+        "sop"
+      ],
+      "gold_status": "inferred",
+      "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
+      "reference_answer": null,
+      "expected_answer_keywords": [],
+      "keyword_eval": false,
+      "source_type": "drone_seed"
+    },
+    {
+      "id": "drone-008",
+      "question": "飞行中失控并且开始坠落时，第一步做什么？",
+      "category": "flight_safety",
+      "difficulty": "hard",
+      "expected_route": "local",
+      "acceptable_routes": [
+        "local"
+      ],
+      "expected_documents": [
+        "drone_safety_abnormal_flight.md",
+        "drone_safety_flight_basics.md"
+      ],
+      "expected_source": "drone_safety_abnormal_flight.md",
+      "expected_product_model": null,
+      "expected_intent": "flight_safety",
+      "expected_safety_level": "high",
+      "expected_escalation": true,
+      "document_type_priority": [
+        "safety",
+        "troubleshooting",
+        "sop"
+      ],
+      "gold_status": "inferred",
+      "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
+      "reference_answer": null,
+      "expected_answer_keywords": [],
+      "keyword_eval": false,
+      "source_type": "drone_seed"
+    },
+    {
+      "id": "drone-009",
+      "question": "无人机进水后还能通电测试吗？",
+      "category": "flight_safety",
+      "difficulty": "hard",
+      "expected_route": "local",
+      "acceptable_routes": [
+        "local"
+      ],
+      "expected_documents": [
+        "drone_safety_battery.md"
+      ],
+      "expected_source": "drone_safety_battery.md",
+      "expected_product_model": null,
+      "expected_intent": "flight_safety",
+      "expected_safety_level": "high",
+      "expected_escalation": true,
+      "document_type_priority": [
+        "safety",
+        "troubleshooting",
+        "sop"
+      ],
+      "gold_status": "inferred",
+      "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
+      "reference_answer": null,
+      "expected_answer_keywords": [],
+      "keyword_eval": false,
+      "source_type": "drone_seed"
+    },
+    {
+      "id": "drone-010",
+      "question": "Mini 4 Pro 失联后的返航设置怎么配置？",
+      "category": "sop_operation",
+      "difficulty": "medium",
+      "expected_route": "local",
+      "acceptable_routes": [
+        "local"
+      ],
+      "expected_documents": [
+        "drone_sop_rth_config.md",
+        "drone_safety_abnormal_flight.md"
+      ],
+      "expected_source": "drone_sop_rth_config.md",
+      "expected_product_model": "mini_4_pro",
+      "expected_intent": "sop_operation",
+      "expected_safety_level": "none",
+      "expected_escalation": false,
+      "document_type_priority": [
+        "sop",
+        "troubleshooting"
+      ],
+      "gold_status": "inferred",
+      "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
+      "reference_answer": null,
+      "expected_answer_keywords": [],
+      "keyword_eval": false,
+      "source_type": "drone_seed"
+    },
+    {
+      "id": "drone-011",
+      "question": "Matrice 350 RTK 和 Mini 4 Pro 的返航步骤可以直接照搬吗？",
+      "category": "cross_model_trap",
+      "difficulty": "hard",
+      "expected_route": "local",
+      "acceptable_routes": [
+        "local"
+      ],
+      "expected_documents": [
+        "drone_sop_rth_config_m350.md",
+        "drone_sop_rth_config.md"
+      ],
+      "expected_source": "drone_sop_rth_config_m350.md",
+      "expected_product_model": null,
+      "expected_intent": "sop_operation",
+      "expected_safety_level": "none",
+      "expected_escalation": false,
+      "document_type_priority": [
+        "sop",
+        "troubleshooting"
+      ],
+      "gold_status": "inferred",
+      "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
+      "reference_answer": null,
+      "expected_answer_keywords": [],
+      "keyword_eval": false,
+      "source_type": "drone_seed"
+    },
+    {
+      "id": "drone-012",
+      "question": "只说‘无人机怎么校准’，没有确认型号时应该查哪种资料？",
+      "category": "product_model",
+      "difficulty": "medium",
+      "expected_route": "local",
+      "acceptable_routes": [
+        "local"
+      ],
+      "expected_documents": [
+        "drone_sop_compass_calibration.md",
+        "drone_sop_imu_calibration.md"
+      ],
+      "expected_source": "drone_sop_compass_calibration.md",
+      "expected_product_model": null,
+      "expected_intent": "sop_operation",
+      "expected_safety_level": "none",
+      "expected_escalation": false,
+      "document_type_priority": [
+        "sop",
+        "troubleshooting"
+      ],
+      "gold_status": "inferred",
+      "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
+      "reference_answer": null,
+      "expected_answer_keywords": [],
+      "keyword_eval": false,
+      "source_type": "drone_seed"
+    },
+    {
+      "id": "drone-013",
+      "question": "Agras T50 的农用电池安全操作步骤是什么？",
+      "category": "sop_operation",
+      "difficulty": "medium",
+      "expected_route": "local",
+      "acceptable_routes": [
+        "local"
+      ],
+      "expected_documents": [
+        "drone_sop_agri_battery_safe.md",
+        "drone_safety_agri_operation.md"
+      ],
+      "expected_source": "drone_sop_agri_battery_safe.md",
+      "expected_product_model": "agras_t50",
+      "expected_intent": "sop_operation",
+      "expected_safety_level": "none",
+      "expected_escalation": false,
+      "document_type_priority": [
+        "sop",
+        "troubleshooting"
+      ],
+      "gold_status": "inferred",
+      "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
+      "reference_answer": null,
+      "expected_answer_keywords": [],
+      "keyword_eval": false,
+      "source_type": "drone_seed"
+    },
+    {
+      "id": "drone-014",
+      "question": "无人机飞行前需要做哪些检查？",
+      "category": "sop_operation",
       "difficulty": "easy",
-      "category": "knowledge_hit",
-      "source_type": "seed"
-    },
-    {
-      "id": "q004",
-      "question": "Prompt Engineering 的五大构成要素是哪些？",
+      "expected_route": "local",
       "acceptable_routes": [
         "local"
       ],
-      "expected_answer_keywords": [
-        "Prompt Engineering",
-        "五大构",
-        "大构成",
-        "五大",
-        "大构",
-        "构成"
+      "expected_documents": [
+        "drone_sop_preflight_check.md",
+        "drone_safety_flight_basics.md"
       ],
-      "expected_source": "Prompt Engineering 提示词工程.md",
+      "expected_source": "drone_sop_preflight_check.md",
+      "expected_product_model": null,
+      "expected_intent": "sop_operation",
+      "expected_safety_level": "none",
+      "expected_escalation": false,
+      "document_type_priority": [
+        "sop",
+        "troubleshooting"
+      ],
+      "gold_status": "inferred",
+      "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
+      "reference_answer": null,
+      "expected_answer_keywords": [],
+      "keyword_eval": false,
+      "source_type": "drone_seed"
+    },
+    {
+      "id": "drone-015",
+      "question": "法规要求无人机实名登记和空域合规吗？",
+      "category": "compliance_regulation",
+      "difficulty": "medium",
+      "expected_route": "local",
+      "acceptable_routes": [
+        "local"
+      ],
+      "expected_documents": [
+        "drone_safety_caac_compliance.md"
+      ],
+      "expected_source": "drone_safety_caac_compliance.md",
+      "expected_product_model": null,
+      "expected_intent": "compliance_regulation",
+      "expected_safety_level": "none",
+      "expected_escalation": false,
+      "document_type_priority": [
+        "safety"
+      ],
+      "gold_status": "inferred",
+      "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
+      "reference_answer": null,
+      "expected_answer_keywords": [],
+      "keyword_eval": false,
+      "source_type": "drone_seed"
+    },
+    {
+      "id": "drone-016",
+      "question": "你是谁？",
+      "category": "chitchat",
       "difficulty": "easy",
-      "category": "knowledge_hit",
-      "source_type": "seed"
+      "expected_route": "chitchat",
+      "acceptable_routes": [
+        "chitchat"
+      ],
+      "expected_documents": [],
+      "expected_source": null,
+      "expected_product_model": null,
+      "expected_intent": "chitchat",
+      "expected_safety_level": "none",
+      "expected_escalation": false,
+      "document_type_priority": [],
+      "gold_status": "inferred",
+      "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
+      "reference_answer": null,
+      "expected_answer_keywords": [],
+      "keyword_eval": false,
+      "source_type": "drone_seed"
     },
     {
-      "id": "q005",
-      "question": "MCP 协议是什么？它解决了什么问题？",
-      "acceptable_routes": [
-        "local"
-      ],
-      "expected_answer_keywords": [
-        "MCP",
-        "协议"
-      ],
-      "expected_source": "MCP 模型上下文协议.md",
+      "id": "drone-017",
+      "question": "谢谢你的帮助",
+      "category": "chitchat",
       "difficulty": "easy",
-      "category": "knowledge_hit",
-      "source_type": "seed"
+      "expected_route": "chitchat",
+      "acceptable_routes": [
+        "chitchat"
+      ],
+      "expected_documents": [],
+      "expected_source": null,
+      "expected_product_model": null,
+      "expected_intent": "chitchat",
+      "expected_safety_level": "none",
+      "expected_escalation": false,
+      "document_type_priority": [],
+      "gold_status": "inferred",
+      "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
+      "reference_answer": null,
+      "expected_answer_keywords": [],
+      "keyword_eval": false,
+      "source_type": "drone_seed"
     },
     {
-      "id": "q006",
-      "question": "LLM 的三阶段训练流程是什么？每个阶段的产出是什么？",
+      "id": "drone-018",
+      "question": "今天最新的无人机法规是什么？",
+      "category": "time_sensitive",
+      "difficulty": "hard",
+      "expected_route": "online",
+      "acceptable_routes": [
+        "online"
+      ],
+      "expected_documents": [],
+      "expected_source": null,
+      "expected_product_model": null,
+      "expected_intent": "time_sensitive",
+      "expected_safety_level": "none",
+      "expected_escalation": false,
+      "document_type_priority": [],
+      "gold_status": "inferred",
+      "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
+      "reference_answer": null,
+      "expected_answer_keywords": [],
+      "keyword_eval": false,
+      "source_type": "drone_seed"
+    },
+    {
+      "id": "drone-019",
+      "question": "2026 年最新固件版本是多少？",
+      "category": "time_sensitive",
+      "difficulty": "hard",
+      "expected_route": "online",
+      "acceptable_routes": [
+        "online"
+      ],
+      "expected_documents": [],
+      "expected_source": null,
+      "expected_product_model": null,
+      "expected_intent": "time_sensitive",
+      "expected_safety_level": "none",
+      "expected_escalation": false,
+      "document_type_priority": [],
+      "gold_status": "inferred",
+      "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
+      "reference_answer": null,
+      "expected_answer_keywords": [],
+      "keyword_eval": false,
+      "source_type": "drone_seed"
+    },
+    {
+      "id": "drone-020",
+      "question": "知识库没有覆盖某个新型号的电机问题时应该怎么办？",
+      "category": "knowledge_gap",
+      "difficulty": "medium",
+      "expected_route": "online",
+      "acceptable_routes": [
+        "online"
+      ],
+      "expected_documents": [],
+      "expected_source": null,
+      "expected_product_model": null,
+      "expected_intent": "knowledge_gap",
+      "expected_safety_level": "none",
+      "expected_escalation": true,
+      "document_type_priority": [],
+      "gold_status": "inferred",
+      "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
+      "reference_answer": null,
+      "expected_answer_keywords": [],
+      "keyword_eval": false,
+      "source_type": "drone_seed"
+    },
+    {
+      "id": "drone-021",
+      "question": "请参考一个模拟的 Mini 4 Pro 向右漂移案例。",
+      "category": "synthetic_case",
+      "difficulty": "medium",
+      "expected_route": "local",
       "acceptable_routes": [
         "local"
       ],
-      "expected_answer_keywords": [
-        "LLM",
-        "三阶段",
-        "阶段训",
-        "段训练",
-        "三阶",
-        "阶段"
+      "expected_documents": [
+        "drone_case_s001_drift_right.md"
       ],
-      "expected_source": "微调.md",
+      "expected_source": "drone_case_s001_drift_right.md",
+      "expected_product_model": "mini_4_pro",
+      "expected_intent": "case_reference",
+      "expected_safety_level": "none",
+      "expected_escalation": false,
+      "document_type_priority": [
+        "case"
+      ],
+      "gold_status": "inferred",
+      "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
+      "reference_answer": null,
+      "expected_answer_keywords": [],
+      "keyword_eval": false,
+      "source_type": "drone_seed"
+    },
+    {
+      "id": "drone-022",
+      "question": "模拟案例能否直接证明我的飞机就是指南针故障？",
+      "category": "synthetic_case",
+      "difficulty": "hard",
+      "expected_route": "local",
+      "acceptable_routes": [
+        "local"
+      ],
+      "expected_documents": [
+        "drone_case_s001_drift_right.md",
+        "drone_troubleshooting_compass_abnormal.md"
+      ],
+      "expected_source": "drone_case_s001_drift_right.md",
+      "expected_product_model": "mini_4_pro",
+      "expected_intent": "case_reference",
+      "expected_safety_level": "none",
+      "expected_escalation": false,
+      "document_type_priority": [
+        "case"
+      ],
+      "gold_status": "inferred",
+      "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
+      "reference_answer": null,
+      "expected_answer_keywords": [],
+      "keyword_eval": false,
+      "source_type": "drone_seed"
+    },
+    {
+      "id": "drone-023",
+      "question": "Matrice 350 RTK 的视觉校准失败怎么排查？",
+      "category": "troubleshooting",
+      "difficulty": "hard",
+      "expected_route": "local",
+      "acceptable_routes": [
+        "local"
+      ],
+      "expected_documents": [
+        "drone_troubleshooting_vision_calibration.md"
+      ],
+      "expected_source": "drone_troubleshooting_vision_calibration.md",
+      "expected_product_model": "matrice_350_rtk",
+      "expected_intent": "troubleshooting",
+      "expected_safety_level": "none",
+      "expected_escalation": false,
+      "document_type_priority": [
+        "troubleshooting",
+        "sop",
+        "case"
+      ],
+      "gold_status": "inferred",
+      "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
+      "reference_answer": null,
+      "expected_answer_keywords": [],
+      "keyword_eval": false,
+      "source_type": "drone_seed"
+    },
+    {
+      "id": "drone-024",
+      "question": "Matrice 350 RTK 的 RTK 弱信号和 Mini 4 Pro 的 GPS 异常可以用同一参数解释吗？",
+      "category": "cross_model_trap",
+      "difficulty": "hard",
+      "expected_route": "local",
+      "acceptable_routes": [
+        "local"
+      ],
+      "expected_documents": [
+        "drone_troubleshooting_rtk_signal_weak.md",
+        "drone_troubleshooting_gps_abnormal.md"
+      ],
+      "expected_source": "drone_troubleshooting_rtk_signal_weak.md",
+      "expected_product_model": null,
+      "expected_intent": "troubleshooting",
+      "expected_safety_level": "none",
+      "expected_escalation": false,
+      "document_type_priority": [
+        "troubleshooting",
+        "sop",
+        "case"
+      ],
+      "gold_status": "inferred",
+      "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
+      "reference_answer": null,
+      "expected_answer_keywords": [],
+      "keyword_eval": false,
+      "source_type": "drone_seed"
+    },
+    {
+      "id": "drone-025",
+      "question": "电池反复无法充电，按 SOP 操作后仍无效，是否需要人工升级？",
+      "category": "escalation",
+      "difficulty": "hard",
+      "expected_route": "local",
+      "acceptable_routes": [
+        "local"
+      ],
+      "expected_documents": [
+        "drone_troubleshooting_battery_not_charging.md",
+        "drone_sop_battery_check.md"
+      ],
+      "expected_source": "drone_troubleshooting_battery_not_charging.md",
+      "expected_product_model": null,
+      "expected_intent": "troubleshooting",
+      "expected_safety_level": "none",
+      "expected_escalation": true,
+      "document_type_priority": [
+        "troubleshooting",
+        "sop",
+        "case"
+      ],
+      "gold_status": "inferred",
+      "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
+      "reference_answer": null,
+      "expected_answer_keywords": [],
+      "keyword_eval": false,
+      "source_type": "drone_seed"
+    },
+    {
+      "id": "drone-026",
+      "question": "我已经按步骤排查两次，遥控器仍然无法连接飞机，下一步是什么？",
+      "category": "escalation",
+      "difficulty": "hard",
+      "expected_route": "local",
+      "acceptable_routes": [
+        "local"
+      ],
+      "expected_documents": [
+        "drone_troubleshooting_aircraft_disconnected.md",
+        "drone_sop_link_pairing.md"
+      ],
+      "expected_source": "drone_troubleshooting_aircraft_disconnected.md",
+      "expected_product_model": null,
+      "expected_intent": "troubleshooting",
+      "expected_safety_level": "none",
+      "expected_escalation": true,
+      "document_type_priority": [
+        "troubleshooting",
+        "sop",
+        "case"
+      ],
+      "gold_status": "inferred",
+      "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
+      "reference_answer": null,
+      "expected_answer_keywords": [],
+      "keyword_eval": false,
+      "source_type": "drone_seed"
+    },
+    {
+      "id": "drone-027",
+      "question": "电池在充电时发热并有异味，能否继续充电？",
+      "category": "flight_safety",
+      "difficulty": "hard",
+      "expected_route": "local",
+      "acceptable_routes": [
+        "local"
+      ],
+      "expected_documents": [
+        "drone_safety_battery.md",
+        "drone_sop_battery_check.md"
+      ],
+      "expected_source": "drone_safety_battery.md",
+      "expected_product_model": null,
+      "expected_intent": "flight_safety",
+      "expected_safety_level": "high",
+      "expected_escalation": true,
+      "document_type_priority": [
+        "safety",
+        "troubleshooting",
+        "sop"
+      ],
+      "gold_status": "inferred",
+      "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
+      "reference_answer": null,
+      "expected_answer_keywords": [],
+      "keyword_eval": false,
+      "source_type": "drone_seed"
+    },
+    {
+      "id": "drone-028",
+      "question": "无人机失联但还在空中，应该如何处置？",
+      "category": "flight_safety",
+      "difficulty": "hard",
+      "expected_route": "local",
+      "acceptable_routes": [
+        "local"
+      ],
+      "expected_documents": [
+        "drone_safety_abnormal_flight.md",
+        "drone_sop_rth_config.md"
+      ],
+      "expected_source": "drone_safety_abnormal_flight.md",
+      "expected_product_model": null,
+      "expected_intent": "flight_safety",
+      "expected_safety_level": "high",
+      "expected_escalation": true,
+      "document_type_priority": [
+        "safety",
+        "troubleshooting",
+        "sop"
+      ],
+      "gold_status": "inferred",
+      "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
+      "reference_answer": null,
+      "expected_answer_keywords": [],
+      "keyword_eval": false,
+      "source_type": "drone_seed"
+    },
+    {
+      "id": "drone-029",
+      "question": "Mini 4 Pro 的视频链路黑屏怎么排查？",
+      "category": "troubleshooting",
+      "difficulty": "medium",
+      "expected_route": "local",
+      "acceptable_routes": [
+        "local"
+      ],
+      "expected_documents": [
+        "drone_troubleshooting_video_blackout.md",
+        "drone_sop_video_link_troubleshoot.md"
+      ],
+      "expected_source": "drone_troubleshooting_video_blackout.md",
+      "expected_product_model": "mini_4_pro",
+      "expected_intent": "troubleshooting",
+      "expected_safety_level": "none",
+      "expected_escalation": false,
+      "document_type_priority": [
+        "troubleshooting",
+        "sop",
+        "case"
+      ],
+      "gold_status": "inferred",
+      "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
+      "reference_answer": null,
+      "expected_answer_keywords": [],
+      "keyword_eval": false,
+      "source_type": "drone_seed"
+    },
+    {
+      "id": "drone-030",
+      "question": "Matrice 350 RTK 的返航配置步骤是什么？",
+      "category": "sop_operation",
+      "difficulty": "medium",
+      "expected_route": "local",
+      "acceptable_routes": [
+        "local"
+      ],
+      "expected_documents": [
+        "drone_sop_rth_config_m350.md"
+      ],
+      "expected_source": "drone_sop_rth_config_m350.md",
+      "expected_product_model": "matrice_350_rtk",
+      "expected_intent": "sop_operation",
+      "expected_safety_level": "none",
+      "expected_escalation": false,
+      "document_type_priority": [
+        "sop",
+        "troubleshooting"
+      ],
+      "gold_status": "inferred",
+      "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
+      "reference_answer": null,
+      "expected_answer_keywords": [],
+      "keyword_eval": false,
+      "source_type": "drone_seed"
+    },
+    {
+      "id": "drone-031",
+      "question": "Agras T50 的 RTK 中断案例只能作为模拟参考吗？",
+      "category": "synthetic_case",
+      "difficulty": "medium",
+      "expected_route": "local",
+      "acceptable_routes": [
+        "local"
+      ],
+      "expected_documents": [
+        "drone_case_s014_agri_rtk_interrupt.md"
+      ],
+      "expected_source": "drone_case_s014_agri_rtk_interrupt.md",
+      "expected_product_model": "agras_t50",
+      "expected_intent": "case_reference",
+      "expected_safety_level": "none",
+      "expected_escalation": false,
+      "document_type_priority": [
+        "case"
+      ],
+      "gold_status": "inferred",
+      "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
+      "reference_answer": null,
+      "expected_answer_keywords": [],
+      "keyword_eval": false,
+      "source_type": "drone_seed"
+    },
+    {
+      "id": "drone-032",
+      "question": "Mavic 3 Enterprise 的产品参数在哪里？",
+      "category": "product_model",
       "difficulty": "easy",
-      "category": "knowledge_hit",
-      "source_type": "seed"
-    },
-    {
-      "id": "q007",
-      "question": "什么是模型幻觉？产生的根本原因是什么？",
+      "expected_route": "local",
       "acceptable_routes": [
         "local"
       ],
-      "expected_answer_keywords": [
-        "型幻觉",
-        "幻觉产",
-        "觉产生",
-        "型幻",
-        "幻觉",
-        "觉产"
+      "expected_documents": [
+        "drone_product_mavic_3_enterprise.md"
       ],
-      "expected_source": "模型幻觉.md",
-      "difficulty": "easy",
-      "category": "knowledge_hit",
-      "source_type": "seed"
+      "expected_source": "drone_product_mavic_3_enterprise.md",
+      "expected_product_model": "mavic_3_enterprise",
+      "expected_intent": "product_parameter",
+      "expected_safety_level": "none",
+      "expected_escalation": false,
+      "document_type_priority": [
+        "product",
+        "technical"
+      ],
+      "gold_status": "inferred",
+      "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
+      "reference_answer": null,
+      "expected_answer_keywords": [],
+      "keyword_eval": false,
+      "source_type": "drone_seed"
     },
     {
-      "id": "q008",
-      "question": "Agent 的四大模块是什么？各自负责什么？",
-      "acceptable_routes": [
-        "local"
-      ],
-      "expected_answer_keywords": [
-        "Agent",
-        "四大"
-      ],
-      "expected_source": "Agent.md",
-      "difficulty": "easy",
-      "category": "knowledge_hit",
-      "source_type": "seed"
-    },
-    {
-      "id": "q009",
-      "question": "Anthropic 对 Agent 和 Workflow 的权威定义分别是什么？",
-      "acceptable_routes": [
-        "local"
-      ],
-      "expected_answer_keywords": [
-        "Anthropic",
-        "Agent",
-        "Workflow",
-        "权威"
-      ],
-      "expected_source": "Agent与Workflow的区别.md",
-      "difficulty": "easy",
-      "category": "knowledge_hit",
-      "source_type": "seed"
-    },
-    {
-      "id": "q010",
-      "question": "Parallel Function Calling 怎么处理？tool_call_id 的作用是什么？",
-      "acceptable_routes": [
-        "local"
-      ],
-      "expected_answer_keywords": [
-        "Parallel Function Calling",
-        "tool",
-        "call",
-        "id"
-      ],
-      "expected_source": "Function Calling 函数调用.md",
-      "difficulty": "easy",
-      "category": "knowledge_hit",
-      "source_type": "seed"
-    },
-    {
-      "id": "q011",
-      "question": "Workflow 的五种编排模式分别是什么？",
-      "acceptable_routes": [
-        "local"
-      ],
-      "expected_answer_keywords": [
-        "Workflow",
-        "编排"
-      ],
-      "expected_source": "Agent与Workflow的区别.md",
-      "difficulty": "easy",
-      "category": "knowledge_hit",
-      "source_type": "seed"
-    },
-    {
-      "id": "q012",
-      "question": "LLM 推理为什么慢？有哪些加速方法？",
-      "acceptable_routes": [
-        "local"
-      ],
-      "expected_answer_keywords": [
-        "LLM",
-        "加速"
-      ],
-      "expected_source": "LLM 大语言模型.md",
-      "difficulty": "easy",
-      "category": "knowledge_hit",
-      "source_type": "seed"
-    },
-    {
-      "id": "q013",
-      "question": "ReAct 模式的三要素是什么？跟 CoT 有啥本质区别？",
-      "acceptable_routes": [
-        "local"
-      ],
-      "expected_answer_keywords": [
-        "ReAct",
-        "CoT"
-      ],
-      "expected_source": "ReAct 推理框架.md",
-      "difficulty": "easy",
-      "category": "knowledge_hit",
-      "source_type": "seed"
-    },
-    {
-      "id": "q014",
-      "question": "什么是 Prompt Injection？怎么防御？",
-      "acceptable_routes": [
-        "local"
-      ],
-      "expected_answer_keywords": [
-        "Prompt Injection",
-        "防御"
-      ],
-      "expected_source": "Prompt Engineering 提示词工程.md",
-      "difficulty": "easy",
-      "category": "knowledge_hit",
-      "source_type": "seed"
-    },
-    {
-      "id": "q015",
-      "question": "CoT 思维链为什么有效？它有什么局限性？",
-      "acceptable_routes": [
-        "local"
-      ],
-      "expected_answer_keywords": [
-        "CoT",
-        "局限性",
-        "维链",
-        "局限",
-        "限性"
-      ],
-      "expected_source": "Prompt Engineering 提示词工程.md",
-      "difficulty": "easy",
-      "category": "knowledge_hit",
-      "source_type": "seed"
-    },
-    {
-      "id": "q016",
-      "question": "Transformer 里面 Self-Attention 的公式是啥？为啥要除以根号 dk？",
-      "acceptable_routes": [
-        "local"
-      ],
-      "expected_answer_keywords": [
-        "Transformer",
-        "Self-Attention",
-        "dk",
-        "根号"
-      ],
-      "expected_source": "Transformer.md",
-      "difficulty": "medium",
-      "category": "knowledge_hit",
-      "source_type": "seed"
-    },
-    {
-      "id": "q017",
-      "question": "LoRA 的核心思想是什么？r 和 alpha 分别代表什么？",
-      "acceptable_routes": [
-        "local"
-      ],
-      "expected_answer_keywords": [
-        "LoRA",
-        "alpha",
-        "代表"
-      ],
-      "expected_source": "微调.md",
-      "difficulty": "medium",
-      "category": "knowledge_hit",
-      "source_type": "seed"
-    },
-    {
-      "id": "q018",
-      "question": "HNSW 索引是怎么工作的？为啥说它像高速公路系统？",
-      "acceptable_routes": [
-        "local"
-      ],
-      "expected_answer_keywords": [
-        "HNSW",
-        "像高速",
-        "高速公",
-        "速公路",
-        "索引",
-        "啥说"
-      ],
-      "expected_source": "向量数据库.md",
-      "difficulty": "medium",
-      "category": "knowledge_hit",
-      "source_type": "seed"
-    },
-    {
-      "id": "q019",
-      "question": "Function Calling 的完整交互流程是怎样的？模型会自己执行函数吗？",
-      "acceptable_routes": [
-        "local"
-      ],
-      "expected_answer_keywords": [
-        "Function Calling",
-        "完整交",
-        "整交互",
-        "完整",
-        "整交",
-        "交互"
-      ],
-      "expected_source": "Function Calling 函数调用.md",
-      "difficulty": "medium",
-      "category": "knowledge_hit",
-      "source_type": "seed"
-    },
-    {
-      "id": "q020",
-      "question": "LangChain 和 LangGraph 各自解决什么问题？两者是什么关系？",
-      "acceptable_routes": [
-        "local"
-      ],
-      "expected_answer_keywords": [
-        "LangChain",
-        "LangGraph",
-        "两者"
-      ],
-      "expected_source": "LangChain-LangGraph.md",
-      "difficulty": "medium",
-      "category": "knowledge_hit",
-      "source_type": "seed"
-    },
-    {
-      "id": "q021",
-      "question": "Embedding 向量嵌入的核心原理是什么？分布式假设怎么理解？",
-      "acceptable_routes": [
-        "local"
-      ],
-      "expected_answer_keywords": [
-        "Embedding",
-        "向量嵌",
-        "量嵌入",
-        "假设怎",
-        "向量",
-        "量嵌"
-      ],
-      "expected_source": "Embedding 向量嵌入.md",
-      "difficulty": "medium",
-      "category": "knowledge_hit",
-      "source_type": "seed"
-    },
-    {
-      "id": "q022",
-      "question": "Agent 记忆机制分哪几层？分别对应人类认知的什么记忆类型？",
-      "acceptable_routes": [
-        "local"
-      ],
-      "expected_answer_keywords": [
-        "Agent",
-        "人类认",
-        "类认知",
-        "记忆类",
-        "忆类型",
-        "记忆"
-      ],
-      "expected_source": "Agent记忆机制.md",
-      "difficulty": "medium",
-      "category": "knowledge_hit",
-      "source_type": "seed"
-    },
-    {
-      "id": "q023",
-      "question": "Harness Engineering 驾驭工程是做什么的？它和 Prompt Engineering 有啥关系？",
-      "acceptable_routes": [
-        "local"
-      ],
-      "expected_answer_keywords": [
-        "Harness Engineering",
-        "Prompt Engineering",
-        "驾驭工",
-        "驾驭",
-        "驭工"
-      ],
-      "expected_source": "Harness Engineering 驾驭工程.md",
-      "difficulty": "medium",
-      "category": "knowledge_hit",
-      "source_type": "seed"
-    },
-    {
-      "id": "q024",
-      "question": "RAG 的工作流程中离线阶段和在线阶段分别包含哪些步骤？",
-      "acceptable_routes": [
-        "local"
-      ],
-      "expected_answer_keywords": [
-        "RAG",
-        "离线阶",
-        "线阶段",
-        "离线",
-        "线阶",
-        "阶段"
-      ],
-      "expected_source": "RAG 检索增强生成.md",
-      "difficulty": "medium",
-      "category": "knowledge_hit",
-      "source_type": "seed"
-    },
-    {
-      "id": "q025",
-      "question": "Chunk 策略有哪几种？各自适合什么场景？",
-      "acceptable_routes": [
-        "local"
-      ],
-      "expected_answer_keywords": [
-        "Chunk",
-        "策略"
-      ],
-      "expected_source": "RAG 检索增强生成.md",
-      "difficulty": "medium",
-      "category": "knowledge_hit",
-      "source_type": "seed"
-    },
-    {
-      "id": "q026",
-      "question": "如何提升 RAG 的检索准确率？优化优先级是怎样的？",
-      "acceptable_routes": [
-        "local"
-      ],
-      "expected_answer_keywords": [
-        "RAG",
-        "如何提",
-        "何提升",
-        "检索准",
-        "索准确",
-        "准确率"
-      ],
-      "expected_source": "RAG 检索增强生成.md",
-      "difficulty": "medium",
-      "category": "knowledge_hit",
-      "source_type": "seed"
-    },
-    {
-      "id": "q027",
-      "question": "余弦相似度和欧氏距离有什么区别？文本场景为啥默认用余弦？",
-      "acceptable_routes": [
-        "local"
-      ],
-      "expected_answer_keywords": [
-        "余弦相",
-        "弦相似",
-        "相似度",
-        "欧氏距",
-        "氏距离",
-        "啥默认"
-      ],
-      "expected_source": null,
-      "difficulty": "medium",
-      "category": "knowledge_hit",
-      "source_type": "seed"
-    },
-    {
-      "id": "q028",
-      "question": "Milvus、Qdrant、Chroma 这三个向量数据库怎么选？",
-      "acceptable_routes": [
-        "local"
-      ],
-      "expected_answer_keywords": [
-        "Milvus",
-        "Qdrant",
-        "Chroma",
-        "向量数",
-        "量数据",
-        "数据库"
-      ],
-      "expected_source": "向量数据库.md",
-      "difficulty": "medium",
-      "category": "knowledge_hit",
-      "source_type": "seed"
-    },
-    {
-      "id": "q029",
-      "question": "Self-RAG 和 CRAG 的核心思想分别是什么？",
-      "acceptable_routes": [
-        "local"
-      ],
-      "expected_answer_keywords": [
-        "Self-RAG",
-        "CRAG"
-      ],
-      "expected_source": "RAG 检索增强生成.md",
-      "difficulty": "medium",
-      "category": "knowledge_hit",
-      "source_type": "seed"
-    },
-    {
-      "id": "q030",
-      "question": "MCP 的三大能力原语 Tools、Resources、Prompts 分别由谁控制？",
-      "acceptable_routes": [
-        "local"
-      ],
-      "expected_answer_keywords": [
-        "MCP",
-        "Tools",
-        "Resources",
-        "Prompts",
-        "由谁控",
-        "三大"
-      ],
-      "expected_source": "Prompt Engineering 提示词工程.md",
-      "difficulty": "medium",
-      "category": "knowledge_hit",
-      "source_type": "seed"
-    },
-    {
-      "id": "q031",
-      "question": "Structured Output 和 Function Calling 是什么关系？",
-      "acceptable_routes": [
-        "local"
-      ],
-      "expected_answer_keywords": [
-        "Structured Output",
-        "Function Calling"
-      ],
-      "expected_source": "Function Calling 函数调用.md",
-      "difficulty": "medium",
-      "category": "knowledge_hit",
-      "source_type": "seed"
-    },
-    {
-      "id": "q032",
-      "question": "QLoRA 相比 LoRA 多了哪些核心组件？它的核心价值是什么？",
-      "acceptable_routes": [
-        "local"
-      ],
-      "expected_answer_keywords": [
-        "QLoRA",
-        "LoRA",
-        "相比多",
-        "相比",
-        "比多",
-        "组件"
-      ],
-      "expected_source": "微调.md",
+      "id": "drone-033",
+      "question": "不知道具体机型时，能否直接套用 Mini 4 Pro 的校准步骤？",
+      "category": "cross_model_trap",
       "difficulty": "hard",
-      "category": "knowledge_hit",
-      "source_type": "seed"
-    },
-    {
-      "id": "q033",
-      "question": "SFT 和 RLHF 分别解决什么问题？DPO 为啥能替代 PPO？",
+      "expected_route": "local",
       "acceptable_routes": [
         "local"
       ],
-      "expected_answer_keywords": [
-        "SFT",
-        "RLHF",
-        "DPO",
-        "PPO",
-        "替代"
+      "expected_documents": [
+        "drone_sop_compass_calibration.md"
       ],
-      "expected_source": "微调.md",
-      "difficulty": "hard",
-      "category": "knowledge_hit",
-      "source_type": "seed"
+      "expected_source": "drone_sop_compass_calibration.md",
+      "expected_product_model": null,
+      "expected_intent": "sop_operation",
+      "expected_safety_level": "none",
+      "expected_escalation": false,
+      "document_type_priority": [
+        "sop",
+        "troubleshooting"
+      ],
+      "gold_status": "inferred",
+      "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
+      "reference_answer": null,
+      "expected_answer_keywords": [],
+      "keyword_eval": false,
+      "source_type": "drone_seed"
     },
     {
-      "id": "q034",
-      "question": "Scaling Law 的核心结论是什么？Chinchilla 定律说了什么？",
+      "id": "drone-034",
+      "question": "请解释指南针为什么会影响飞行方向，但不要把原理当成故障诊断。",
+      "category": "technical_principle",
+      "difficulty": "medium",
+      "expected_route": "local",
       "acceptable_routes": [
         "local"
       ],
-      "expected_answer_keywords": [
-        "Scaling Law",
-        "Chinchilla",
-        "结论",
-        "律说"
+      "expected_documents": [
+        "drone_technical_compass.md"
       ],
-      "expected_source": "LLM 大语言模型.md",
-      "difficulty": "hard",
-      "category": "knowledge_hit",
-      "source_type": "seed"
-    },
-    {
-      "id": "q035",
-      "question": "GPT-4、Llama 3、DeepSeek-V3 的核心架构差异是什么？",
-      "acceptable_routes": [
-        "local"
+      "expected_source": "drone_technical_compass.md",
+      "expected_product_model": null,
+      "expected_intent": "technical_principle",
+      "expected_safety_level": "none",
+      "expected_escalation": false,
+      "document_type_priority": [
+        "technical",
+        "product"
       ],
-      "expected_answer_keywords": [
-        "GPT-4",
-        "Llama",
-        "DeepSeek-V3",
-        "架构"
-      ],
-      "expected_source": null,
-      "difficulty": "hard",
-      "category": "knowledge_hit",
-      "source_type": "seed"
-    },
-    {
-      "id": "q036",
-      "question": "Graph RAG 和传统 RAG 有什么区别？分别适合什么场景？",
-      "acceptable_routes": [
-        "local"
-      ],
-      "expected_answer_keywords": [
-        "Graph RAG",
-        "RAG",
-        "传统"
-      ],
-      "expected_source": "RAG 检索增强生成.md",
-      "difficulty": "hard",
-      "category": "knowledge_hit",
-      "source_type": "seed"
-    },
-    {
-      "id": "q037",
-      "question": "如何评估 RAG 系统的质量？Ragas 框架的三个核心指标是什么？",
-      "acceptable_routes": [
-        "local"
-      ],
-      "expected_answer_keywords": [
-        "RAG",
-        "Ragas",
-        "如何评",
-        "何评估",
-        "量框架",
-        "如何"
-      ],
-      "expected_source": "RAG 检索增强生成.md",
-      "difficulty": "hard",
-      "category": "knowledge_hit",
-      "source_type": "seed"
-    },
-    {
-      "id": "q038",
-      "question": "什么是 Matryoshka Representation Learning？它解决了什么问题？",
-      "acceptable_routes": [
-        "local"
-      ],
-      "expected_answer_keywords": [
-        "Matryoshka Representation Learning"
-      ],
-      "expected_source": "Embedding 向量嵌入.md",
-      "difficulty": "hard",
-      "category": "knowledge_hit",
-      "source_type": "seed"
-    },
-    {
-      "id": "q039",
-      "question": "Loop Engineering 循环工程的核心理念是什么？跟 Harness Engineering 有啥区别？",
-      "acceptable_routes": [
-        "local"
-      ],
-      "expected_answer_keywords": [
-        "Loop Engineering",
-        "Harness Engineering",
-        "循环工",
-        "循环",
-        "环工"
-      ],
-      "expected_source": "Harness Engineering 驾驭工程.md",
-      "difficulty": "hard",
-      "category": "knowledge_hit",
-      "source_type": "seed"
-    },
-    {
-      "id": "q040",
-      "question": "Decoder-Only 架构为什么成为 LLM 的主流选择？",
-      "acceptable_routes": [
-        "local"
-      ],
-      "expected_answer_keywords": [
-        "Decoder-Only",
-        "LLM",
-        "架构",
-        "选择"
-      ],
-      "expected_source": "LLM 大语言模型.md",
-      "difficulty": "hard",
-      "category": "knowledge_hit",
-      "source_type": "seed"
-    },
-    {
-      "id": "q041",
-      "question": "2026 年最新的大模型排行榜是怎样的？",
-      "acceptable_routes": [
-        "online"
-      ],
+      "gold_status": "inferred",
+      "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
+      "reference_answer": null,
       "expected_answer_keywords": [],
-      "expected_source": null,
-      "difficulty": "easy",
-      "category": "knowledge_missing",
-      "source_type": "seed"
-    },
-    {
-      "id": "q042",
-      "question": "React 19 和 Vue 3 哪个更适合做中后台项目？",
-      "acceptable_routes": [
-        "online"
-      ],
-      "expected_answer_keywords": [],
-      "expected_source": "ReAct 推理框架.md",
-      "difficulty": "easy",
-      "category": "knowledge_missing",
-      "source_type": "seed"
-    },
-    {
-      "id": "q043",
-      "question": "今天比特币的价格是多少？",
-      "acceptable_routes": [
-        "online"
-      ],
-      "expected_answer_keywords": [],
-      "expected_source": null,
-      "difficulty": "easy",
-      "category": "knowledge_missing",
-      "source_type": "seed"
-    },
-    {
-      "id": "q044",
-      "question": "Kubernetes 1.32 版本新增了哪些特性？",
-      "acceptable_routes": [
-        "online"
-      ],
-      "expected_answer_keywords": [],
-      "expected_source": null,
-      "difficulty": "medium",
-      "category": "knowledge_missing",
-      "source_type": "seed"
-    },
-    {
-      "id": "q045",
-      "question": "OpenAI 上周发布的新模型是什么？",
-      "acceptable_routes": [
-        "online"
-      ],
-      "expected_answer_keywords": [],
-      "expected_source": null,
-      "difficulty": "easy",
-      "category": "knowledge_missing",
-      "source_type": "seed"
-    },
-    {
-      "id": "q046",
-      "question": "Python 的 asyncio 和 Go 的 goroutine 性能对比是怎样的？",
-      "acceptable_routes": [
-        "online"
-      ],
-      "expected_answer_keywords": [],
-      "expected_source": null,
-      "difficulty": "medium",
-      "category": "knowledge_missing",
-      "source_type": "seed"
-    },
-    {
-      "id": "q047",
-      "question": "特斯拉 2026 年 Q2 的财报数据出来了吗？",
-      "acceptable_routes": [
-        "online"
-      ],
-      "expected_answer_keywords": [],
-      "expected_source": null,
-      "difficulty": "easy",
-      "category": "knowledge_missing",
-      "source_type": "seed"
-    },
-    {
-      "id": "q048",
-      "question": "Docker 和 Podman 在生产环境用哪个更好？",
-      "acceptable_routes": [
-        "online"
-      ],
-      "expected_answer_keywords": [],
-      "expected_source": null,
-      "difficulty": "medium",
-      "category": "knowledge_missing",
-      "source_type": "seed"
-    },
-    {
-      "id": "q049",
-      "question": "Rust 语言 2026 年的开发者生态调查结果显示了什么趋势？",
-      "acceptable_routes": [
-        "online"
-      ],
-      "expected_answer_keywords": [],
-      "expected_source": null,
-      "difficulty": "medium",
-      "category": "knowledge_missing",
-      "source_type": "seed"
-    },
-    {
-      "id": "q050",
-      "question": "AWS Lambda 最新的支持的运行时版本有哪些？",
-      "acceptable_routes": [
-        "online"
-      ],
-      "expected_answer_keywords": [],
-      "expected_source": null,
-      "difficulty": "easy",
-      "category": "knowledge_missing",
-      "source_type": "seed"
-    },
-    {
-      "id": "q051",
-      "question": "怎么评价 Anthropic 最近被曝出的安全争议事件？",
-      "acceptable_routes": [
-        "online"
-      ],
-      "expected_answer_keywords": [],
-      "expected_source": null,
-      "difficulty": "medium",
-      "category": "knowledge_missing",
-      "source_type": "seed"
-    },
-    {
-      "id": "q052",
-      "question": "Next.js 16 有什么 breaking changes？",
-      "acceptable_routes": [
-        "online"
-      ],
-      "expected_answer_keywords": [],
-      "expected_source": null,
-      "difficulty": "medium",
-      "category": "knowledge_missing",
-      "source_type": "seed"
-    },
-    {
-      "id": "q053",
-      "question": "国内大模型备案注册的最新政策是什么？",
-      "acceptable_routes": [
-        "online"
-      ],
-      "expected_answer_keywords": [],
-      "expected_source": null,
-      "difficulty": "hard",
-      "category": "knowledge_missing",
-      "source_type": "seed"
-    },
-    {
-      "id": "q054",
-      "question": "GitHub Copilot 最新的模型支持情况如何？",
-      "acceptable_routes": [
-        "online"
-      ],
-      "expected_answer_keywords": [],
-      "expected_source": null,
-      "difficulty": "medium",
-      "category": "knowledge_missing",
-      "source_type": "seed"
-    },
-    {
-      "id": "q055",
-      "question": "MySQL 9.0 和 PostgreSQL 18 在 JSON 支持方面谁更强？",
-      "acceptable_routes": [
-        "online"
-      ],
-      "expected_answer_keywords": [],
-      "expected_source": null,
-      "difficulty": "hard",
-      "category": "knowledge_missing",
-      "source_type": "seed"
-    },
-    {
-      "id": "q056",
-      "question": "最近爆火的那个 AI 视频生成工具叫什么来着？效果怎么样？",
-      "acceptable_routes": [
-        "online"
-      ],
-      "expected_answer_keywords": [],
-      "expected_source": null,
-      "difficulty": "easy",
-      "category": "knowledge_missing",
-      "source_type": "seed"
-    },
-    {
-      "id": "q057",
-      "question": "Spring Boot 4.0 什么时候发布？有哪些新特性？",
-      "acceptable_routes": [
-        "online"
-      ],
-      "expected_answer_keywords": [],
-      "expected_source": null,
-      "difficulty": "medium",
-      "category": "knowledge_missing",
-      "source_type": "seed"
-    },
-    {
-      "id": "q058",
-      "question": "HuggingFace 最新的模型下载量排行前 10 是哪些？",
-      "acceptable_routes": [
-        "online"
-      ],
-      "expected_answer_keywords": [],
-      "expected_source": null,
-      "difficulty": "medium",
-      "category": "knowledge_missing",
-      "source_type": "seed"
-    },
-    {
-      "id": "q059",
-      "question": "WebAssembly 在 2026 年的浏览器支持率是多少？",
-      "acceptable_routes": [
-        "online"
-      ],
-      "expected_answer_keywords": [],
-      "expected_source": null,
-      "difficulty": "hard",
-      "category": "knowledge_missing",
-      "source_type": "seed"
-    },
-    {
-      "id": "q060",
-      "question": "为什么 Agent 比传统 Chain 更适合处理复杂的多步任务？",
-      "acceptable_routes": [
-        "local",
-        "decomposition"
-      ],
-      "expected_answer_keywords": [
-        "Agent",
-        "Chain",
-        "比传统",
-        "传统更",
-        "比传",
-        "传统"
-      ],
-      "expected_source": "Agent.md",
-      "difficulty": "medium",
-      "category": "multi_hop",
-      "source_type": "seed"
-    },
-    {
-      "id": "q061",
-      "question": "RAG 和微调各自的适用场景是什么？如果我的知识库每天都在更新，应该怎么选？",
-      "acceptable_routes": [
-        "local",
-        "decomposition"
-      ],
-      "expected_answer_keywords": [
-        "RAG",
-        "知识库",
-        "识库每",
-        "库每天",
-        "每天都",
-        "微调"
-      ],
-      "expected_source": "RAG 检索增强生成.md",
-      "difficulty": "medium",
-      "category": "multi_hop",
-      "source_type": "seed"
-    },
-    {
-      "id": "q062",
-      "question": "从 Transformer 到 GPT-4 再到 Agent，AI 技术栈是怎么一步步演进的？",
-      "acceptable_routes": [
-        "local",
-        "decomposition"
-      ],
-      "expected_answer_keywords": [
-        "Transformer",
-        "GPT-4",
-        "Agent",
-        "AI",
-        "演进"
-      ],
-      "expected_source": "Transformer.md",
-      "difficulty": "hard",
-      "category": "multi_hop",
-      "source_type": "seed"
-    },
-    {
-      "id": "q063",
-      "question": "如果我的 RAG 系统检索准确率很高但用户还是不满意，可能是什么原因？怎么排查？",
-      "acceptable_routes": [
-        "local",
-        "decomposition"
-      ],
-      "expected_answer_keywords": [
-        "RAG",
-        "统检索",
-        "检索准",
-        "索准确",
-        "准确率",
-        "确率很"
-      ],
-      "expected_source": "Prompt Engineering 提示词工程.md",
-      "difficulty": "hard",
-      "category": "multi_hop",
-      "source_type": "seed"
-    },
-    {
-      "id": "q064",
-      "question": "LoRA 微调后的模型能不能直接用在 RAG 系统里？两者组合有什么需要注意的？",
-      "acceptable_routes": [
-        "local",
-        "decomposition"
-      ],
-      "expected_answer_keywords": [
-        "LoRA",
-        "RAG",
-        "两者组",
-        "微调",
-        "直接",
-        "两者"
-      ],
-      "expected_source": "微调.md",
-      "difficulty": "hard",
-      "category": "multi_hop",
-      "source_type": "seed"
-    },
-    {
-      "id": "q065",
-      "question": "为什么向量数据库的检索质量直接决定了 RAG 系统的上限？",
-      "acceptable_routes": [
-        "local",
-        "decomposition"
-      ],
-      "expected_answer_keywords": [
-        "RAG",
-        "向量数",
-        "量数据",
-        "数据库",
-        "量直接",
-        "向量"
-      ],
-      "expected_source": "向量数据库.md",
-      "difficulty": "medium",
-      "category": "multi_hop",
-      "source_type": "seed"
-    },
-    {
-      "id": "q066",
-      "question": "Function Calling 和 ReAct 都能让模型调用工具，它们的设计哲学有什么不同？最佳实践是什么？",
-      "acceptable_routes": [
-        "local",
-        "decomposition"
-      ],
-      "expected_answer_keywords": [
-        "Function Calling",
-        "ReAct",
-        "设计哲",
-        "计哲学",
-        "同最佳",
-        "最佳实"
-      ],
-      "expected_source": "Function Calling 函数调用.md",
-      "difficulty": "hard",
-      "category": "multi_hop",
-      "source_type": "seed"
-    },
-    {
-      "id": "q067",
-      "question": "MCP 协议的出现会改变 Function Calling 的使用方式吗？两者怎么协同？",
-      "acceptable_routes": [
-        "local",
-        "decomposition"
-      ],
-      "expected_answer_keywords": [
-        "MCP",
-        "Function Calling",
-        "两者怎",
-        "协议",
-        "出现",
-        "改变"
-      ],
-      "expected_source": "Function Calling 函数调用.md",
-      "difficulty": "hard",
-      "category": "multi_hop",
-      "source_type": "seed"
-    },
-    {
-      "id": "q068",
-      "question": "Agent 的循环失控问题是怎么产生的？Harness Engineering 提供了哪些解决思路？",
-      "acceptable_routes": [
-        "local",
-        "decomposition"
-      ],
-      "expected_answer_keywords": [
-        "Agent",
-        "Harness Engineering",
-        "循环失",
-        "环失控",
-        "循环",
-        "环失"
-      ],
-      "expected_source": "Harness Engineering 驾驭工程.md",
-      "difficulty": "hard",
-      "category": "multi_hop",
-      "source_type": "seed"
-    },
-    {
-      "id": "q069",
-      "question": "为什么说 LangGraph 的图模型天然消解了 Agent 和 Workflow 的二元对立？",
-      "acceptable_routes": [
-        "local",
-        "decomposition"
-      ],
-      "expected_answer_keywords": [
-        "LangGraph",
-        "Agent",
-        "Workflow",
-        "型天然",
-        "天然消",
-        "型天"
-      ],
-      "expected_source": "LangChain-LangGraph.md",
-      "difficulty": "hard",
-      "category": "multi_hop",
-      "source_type": "seed"
-    },
-    {
-      "id": "q070",
-      "question": "Embedding 模型的选择对 RAG 系统有什么影响？怎么选合适的 Embedding 模型？",
-      "acceptable_routes": [
-        "local",
-        "decomposition"
-      ],
-      "expected_answer_keywords": [
-        "Embedding",
-        "RAG",
-        "影响怎",
-        "选择",
-        "影响",
-        "响怎"
-      ],
-      "expected_source": "Embedding 向量嵌入.md",
-      "difficulty": "medium",
-      "category": "multi_hop",
-      "source_type": "seed"
-    },
-    {
-      "id": "q071",
-      "question": "模型幻觉在 RAG 系统中是怎么产生的？RAG 能完全消除幻觉吗？",
-      "acceptable_routes": [
-        "local",
-        "decomposition"
-      ],
-      "expected_answer_keywords": [
-        "RAG",
-        "型幻觉",
-        "完全消",
-        "全消除",
-        "消除幻",
-        "除幻觉"
-      ],
-      "expected_source": "RAG 检索增强生成.md",
-      "difficulty": "medium",
-      "category": "multi_hop",
-      "source_type": "seed"
-    },
-    {
-      "id": "q072",
-      "question": "Agent 记忆机制中的长期记忆为什么要用向量数据库来存储？",
-      "acceptable_routes": [
-        "local",
-        "decomposition"
-      ],
-      "expected_answer_keywords": [
-        "Agent",
-        "长期记",
-        "期记忆",
-        "向量数",
-        "量数据",
-        "数据库"
-      ],
-      "expected_source": "Agent记忆机制.md",
-      "difficulty": "medium",
-      "category": "multi_hop",
-      "source_type": "seed"
-    },
-    {
-      "id": "q073",
-      "question": "Prompt Engineering、Context Engineering、Harness Engineering 三者的关系是什么？为什么说它们是递进的？",
-      "acceptable_routes": [
-        "local",
-        "decomposition"
-      ],
-      "expected_answer_keywords": [
-        "Prompt Engineering",
-        "Context Engineering",
-        "Harness Engineering",
-        "三者",
-        "递进"
-      ],
-      "expected_source": "Harness Engineering 驾驭工程.md",
-      "difficulty": "hard",
-      "category": "multi_hop",
-      "source_type": "seed"
-    },
-    {
-      "id": "q074",
-      "question": "Loop Engineering 是怎么从 Harness Engineering 演化出来的？解决了什么遗留问题？",
-      "acceptable_routes": [
-        "local",
-        "decomposition"
-      ],
-      "expected_answer_keywords": [
-        "Loop Engineering",
-        "Harness Engineering",
-        "演化出",
-        "化出来",
-        "演化",
-        "化出"
-      ],
-      "expected_source": "Harness Engineering 驾驭工程.md",
-      "difficulty": "hard",
-      "category": "multi_hop",
-      "source_type": "seed"
-    },
-    {
-      "id": "q075",
-      "question": "为什么 Anthropic 建议优先用 Workflow 而不是 Agent？什么情况下才应该引入 Agent？",
-      "acceptable_routes": [
-        "local",
-        "decomposition"
-      ],
-      "expected_answer_keywords": [
-        "Anthropic",
-        "Workflow",
-        "Agent",
-        "建议优",
-        "议优先",
-        "建议"
-      ],
-      "expected_source": "Agent与Workflow的区别.md",
-      "difficulty": "medium",
-      "category": "multi_hop",
-      "source_type": "seed"
-    },
-    {
-      "id": "q076",
-      "question": "如果要从零搭建一个企业级知识库问答系统，需要用到知识库里的哪些技术？怎么组合？",
-      "acceptable_routes": [
-        "local",
-        "decomposition"
-      ],
-      "expected_answer_keywords": [
-        "零搭建",
-        "搭建一",
-        "企业级",
-        "业级知",
-        "级知识",
-        "知识库"
-      ],
-      "expected_source": "Embedding 向量嵌入.md",
-      "difficulty": "hard",
-      "category": "multi_hop",
-      "source_type": "seed"
-    },
-    {
-      "id": "q077",
-      "question": "为什么 DPO 的流行不是因为方法更好而是因为工程更简单？这说明了什么规律？",
-      "acceptable_routes": [
-        "local",
-        "decomposition"
-      ],
-      "expected_answer_keywords": [
-        "DPO",
-        "更简单",
-        "更好",
-        "更简",
-        "简单",
-        "说明"
-      ],
-      "expected_source": "微调.md",
-      "difficulty": "hard",
-      "category": "multi_hop",
-      "source_type": "seed"
-    },
-    {
-      "id": "q078",
-      "question": "长上下文窗口越来越大，RAG 还有存在的必要吗？",
-      "acceptable_routes": [
-        "local",
-        "decomposition"
-      ],
-      "expected_answer_keywords": [
-        "RAG",
-        "文窗口",
-        "窗口越",
-        "口越来",
-        "越来越",
-        "来越大"
-      ],
-      "expected_source": "RAG 检索增强生成.md",
-      "difficulty": "medium",
-      "category": "multi_hop",
-      "source_type": "seed"
-    },
-    {
-      "id": "q079",
-      "question": "为什么微调不是让模型变聪明而是让模型变听话？这个认知对实际使用有什么影响？",
-      "acceptable_routes": [
-        "local",
-        "decomposition"
-      ],
-      "expected_answer_keywords": [
-        "型变聪",
-        "变聪明",
-        "型变听",
-        "变听话",
-        "实际使",
-        "微调"
-      ],
-      "expected_source": "微调.md",
-      "difficulty": "hard",
-      "category": "multi_hop",
-      "source_type": "seed"
-    },
-    {
-      "id": "q080",
-      "question": "根据 Self-RAG 论文的实验数据，Self-RAG 在 TruthfulQA 上的准确率比标准 RAG 高多少？",
-      "acceptable_routes": [
-        "local",
-        "online"
-      ],
-      "expected_answer_keywords": [],
-      "expected_source": "RAG 检索增强生成.md",
-      "difficulty": "hard",
-      "category": "hallucination_test",
-      "source_type": "seed"
-    },
-    {
-      "id": "q081",
-      "question": "LangGraph 3.0 新增了哪些特性？官方迁移指南说了什么？",
-      "acceptable_routes": [
-        "local",
-        "online"
-      ],
-      "expected_answer_keywords": [],
-      "expected_source": "LangChain-LangGraph.md",
-      "difficulty": "medium",
-      "category": "hallucination_test",
-      "source_type": "seed"
-    },
-    {
-      "id": "q082",
-      "question": "根据 Anthropic 2025 年的内部测试数据，Claude 3.5 在 RAG 场景下的幻觉率降到了多少？",
-      "acceptable_routes": [
-        "local",
-        "online"
-      ],
-      "expected_answer_keywords": [],
-      "expected_source": "RAG 检索增强生成.md",
-      "difficulty": "hard",
-      "category": "hallucination_test",
-      "source_type": "seed"
-    },
-    {
-      "id": "q083",
-      "question": "LoRA 论文中 r=8 实验的具体准确率数值是多少？在哪些 benchmark 上测试的？",
-      "acceptable_routes": [
-        "local",
-        "online"
-      ],
-      "expected_answer_keywords": [],
-      "expected_source": "微调.md",
-      "difficulty": "hard",
-      "category": "hallucination_test",
-      "source_type": "seed"
-    },
-    {
-      "id": "q084",
-      "question": "OpenAI 2025 年发布的 GPT-5 用了什么新架构？参数量是多少？",
-      "acceptable_routes": [
-        "local",
-        "online"
-      ],
-      "expected_answer_keywords": [],
-      "expected_source": null,
-      "difficulty": "medium",
-      "category": "hallucination_test",
-      "source_type": "seed"
-    },
-    {
-      "id": "q085",
-      "question": "Milvus 2.5 版本的官方性能测试报告显示吞吐量提升了多少？",
-      "acceptable_routes": [
-        "local",
-        "online"
-      ],
-      "expected_answer_keywords": [],
-      "expected_source": null,
-      "difficulty": "hard",
-      "category": "hallucination_test",
-      "source_type": "seed"
-    },
-    {
-      "id": "q086",
-      "question": "RAG 原始论文（Lewis et al., 2020）中报告的 Top-5 检索准确率是多少？",
-      "acceptable_routes": [
-        "local",
-        "online"
-      ],
-      "expected_answer_keywords": [],
-      "expected_source": "RAG 检索增强生成.md",
-      "difficulty": "hard",
-      "category": "hallucination_test",
-      "source_type": "seed"
-    },
-    {
-      "id": "q087",
-      "question": "BGE-M3 模型在 MTEB 排行榜上的具体排名和分数是多少？",
-      "acceptable_routes": [
-        "local",
-        "online"
-      ],
-      "expected_answer_keywords": [],
-      "expected_source": null,
-      "difficulty": "medium",
-      "category": "hallucination_test",
-      "source_type": "seed"
-    },
-    {
-      "id": "q088",
-      "question": "Dify 2026 年最新版本的用户量突破了多少？官方路线图有什么新功能？",
-      "acceptable_routes": [
-        "local",
-        "online"
-      ],
-      "expected_answer_keywords": [],
-      "expected_source": null,
-      "difficulty": "medium",
-      "category": "hallucination_test",
-      "source_type": "seed"
-    },
-    {
-      "id": "q089",
-      "question": "根据 Google 内部测试，Gemini 2.0 在 Agent 任务上的成功率比 GPT-4o 高多少个百分点？",
-      "acceptable_routes": [
-        "local",
-        "online"
-      ],
-      "expected_answer_keywords": [],
-      "expected_source": "Agent.md",
-      "difficulty": "hard",
-      "category": "hallucination_test",
-      "source_type": "seed"
-    },
-    {
-      "id": "q090",
-      "question": "那个东西怎么用啊？",
-      "acceptable_routes": [
-        "local"
-      ],
-      "expected_answer_keywords": [],
-      "expected_source": null,
-      "difficulty": "easy",
-      "category": "routing_test",
-      "source_type": "seed"
-    },
-    {
-      "id": "q091",
-      "question": "它和之前那个比哪个好？",
-      "acceptable_routes": [
-        "local"
-      ],
-      "expected_answer_keywords": [],
-      "expected_source": null,
-      "difficulty": "easy",
-      "category": "routing_test",
-      "source_type": "seed"
-    },
-    {
-      "id": "q092",
-      "question": "RAG 怎么用？效果不好咋整？",
-      "acceptable_routes": [
-        "local"
-      ],
-      "expected_answer_keywords": [],
-      "expected_source": "RAG 检索增强生成.md",
-      "difficulty": "medium",
-      "category": "routing_test",
-      "source_type": "seed"
-    },
-    {
-      "id": "q093",
-      "question": "帮我看下上次说的那个方案",
-      "acceptable_routes": [
-        "local"
-      ],
-      "expected_answer_keywords": [],
-      "expected_source": null,
-      "difficulty": "easy",
-      "category": "routing_test",
-      "source_type": "seed"
-    },
-    {
-      "id": "q094",
-      "question": "transformer的attation机制是啥",
-      "acceptable_routes": [
-        "local"
-      ],
-      "expected_answer_keywords": [],
-      "expected_source": "Transformer.md",
-      "difficulty": "easy",
-      "category": "routing_test",
-      "source_type": "seed"
-    },
-    {
-      "id": "q095",
-      "question": "向量数据库是不是就是redis那种？",
-      "acceptable_routes": [
-        "local"
-      ],
-      "expected_answer_keywords": [],
-      "expected_source": "向量数据库.md",
-      "difficulty": "medium",
-      "category": "routing_test",
-      "source_type": "seed"
-    },
-    {
-      "id": "q096",
-      "question": "agent怎么搞",
-      "acceptable_routes": [
-        "local"
-      ],
-      "expected_answer_keywords": [],
-      "expected_source": "Agent.md",
-      "difficulty": "easy",
-      "category": "routing_test",
-      "source_type": "seed"
-    },
-    {
-      "id": "q097",
-      "question": "微调贵不贵？效果行不行？",
-      "acceptable_routes": [
-        "local"
-      ],
-      "expected_answer_keywords": [],
-      "expected_source": "微调.md",
-      "difficulty": "medium",
-      "category": "routing_test",
-      "source_type": "seed"
-    },
-    {
-      "id": "q098",
-      "question": "有没有什么办法能让它不瞎编？",
-      "acceptable_routes": [
-        "local"
-      ],
-      "expected_answer_keywords": [],
-      "expected_source": "LLM 大语言模型.md",
-      "difficulty": "medium",
-      "category": "routing_test",
-      "source_type": "seed"
-    },
-    {
-      "id": "q099",
-      "question": "prompt 写得烂怎么办？就是那种写了一大段但模型不听的那种",
-      "acceptable_routes": [
-        "local"
-      ],
-      "expected_answer_keywords": [],
-      "expected_source": "Prompt Engineering 提示词工程.md",
-      "difficulty": "medium",
-      "category": "routing_test",
-      "source_type": "seed"
+      "keyword_eval": false,
+      "source_type": "drone_seed"
     }
   ]
 }
