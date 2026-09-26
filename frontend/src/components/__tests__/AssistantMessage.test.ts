@@ -53,6 +53,32 @@ describe('AssistantMessage after-sales notices', () => {
     expect(wrapper.text()).toContain('回答内容')
   })
 
+  it('shows agent ticket draft notice only when decision is create_ticket', () => {
+    // 阶段 5：Agent 已建草稿 → 显示提示与查看按钮（不自动提交）
+    const wrapper = mount(AssistantMessage, {
+      props: {
+        message: message({
+          recommended_action: 'create_ticket',
+          agent_ticket: { id: 't1', ticket_number: 'T-001', status: 'draft' },
+        }),
+      },
+      global,
+    })
+    const notice = wrapper.find('[data-testid="agent-ticket-notice"]')
+    expect(notice.exists()).toBe(true)
+    expect(notice.text()).toContain('T-001')
+    expect(notice.text()).toContain('待你确认提交')
+    expect(wrapper.find('[data-testid="view-agent-ticket"]').exists()).toBe(true)
+  })
+
+  it('hides agent ticket notice when no ticket was created', () => {
+    const wrapper = mount(AssistantMessage, {
+      props: { message: message({ recommended_action: 'answer' }) },
+      global,
+    })
+    expect(wrapper.find('[data-testid="agent-ticket-notice"]').exists()).toBe(false)
+  })
+
   it('shows attachment processing status and user attachment evidence', () => {
     const wrapper = mount(AssistantMessage, {
       props: {

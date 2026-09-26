@@ -60,6 +60,7 @@ _feedback_store: FeedbackStore = None  # 全局反馈存储实例
 _fault_progress_store: FaultProgressStore = None  # 阶段 2: 排查失败计数存储实例
 _attachment_store: AttachmentStore = None
 _ticket_store: TicketStore = None
+_ticket_service = None                  # 阶段 5: 工单业务服务（Agent 建单胶水读取）
 
 
 # 配置文件日志（轮转，UTF-8）
@@ -131,6 +132,13 @@ def get_ticket_store() -> TicketStore:
     return _ticket_store
 
 
+def get_ticket_service():
+    """阶段 5: 供 chat 层在 decide_action 判定建单后调用（Agent 自动建草稿）。"""
+    if _ticket_service is None:
+        raise RuntimeError("TicketService not initialized")
+    return _ticket_service
+
+
 # 定义应用生命周期管理（启动初始化 / 关闭清理）
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -163,6 +171,8 @@ async def lifespan(app: FastAPI):
     logger.info("QueryLogStore 初始化完成")  # 记录日志
 
     # 工单业务服务：汇聚工单存储、会话快照、查询日志与附件证据
+    # 阶段 5: 提升为模块级全局（get_ticket_service 供 chat 层 Agent 建单胶水读取）
+    global _ticket_service
     _ticket_service = TicketService(
         ticket_store=_ticket_store,
         conversation_store=_store,

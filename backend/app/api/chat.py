@@ -28,7 +28,7 @@ from app.services.attachment_security import AttachmentValidationError
 # 导入错误码文案映射
 from app.api.errors import ERROR_MESSAGES
 # 导入会话/查询日志/排查计数存储获取函数
-from app.main import get_store, get_query_log_store, get_fault_progress_store, get_attachment_store
+from app.main import get_store, get_query_log_store, get_fault_progress_store, get_attachment_store, get_ticket_service
 # 导入全局配置
 from app.config import settings
 # 导入全局限速器
@@ -407,6 +407,35 @@ async def chat_stream(
                     document_type_priority=final_state.get("document_type_priority"),
                 )
 
+                # 阶段 5: Agent 建单胶水——decide_action 判定需售后介入时，调用现有
+                # TicketService 创建草稿（actor_type="agent"）。只建 draft，提交仍由
+                # 用户确认；幂等（每会话一张）；失败只记日志，绝不阻断聊天流。
+                agent_ticket_payload = None
+                if (
+                    final_state.get("auto_create_ticket") is True
+                    and settings.AGENT_AUTO_TICKET_ENABLED
+                ):
+                    try:
+                        agent_ticket = await get_ticket_service().create_draft_from_conversation(
+                            user.id,
+                            body.conversation_id,
+                            actor_type="agent",
+                            actor_id=None,
+                        )
+                        agent_ticket_payload = {
+                            "id": agent_ticket.get("id"),
+                            "ticket_number": agent_ticket.get("ticket_number"),
+                            "status": agent_ticket.get("status"),
+                        }
+                        logger.info(
+                            f"Agent 建单成功 conv={body.conversation_id} "
+                            f"ticket={agent_ticket.get('ticket_number')}"
+                        )
+                    except Exception as ticket_err:
+                        logger.warning(
+                            f"Agent 自动建单失败（不阻断聊天）conv={body.conversation_id}: {ticket_err}"
+                        )
+
                 # Always send the canonical answer once.  Normal generation
                 # also streams tokens, while fallback nodes may produce only a
                 # final_state value; the client reconciles this event to avoid
@@ -448,6 +477,8 @@ async def chat_stream(
                                 "information_gaps": final_state.get("information_gaps"),
                                 # 阶段 4：结构化诊断（公开字段，引用已程序校验）
                                 "diagnosis": final_state.get("diagnosis"),
+                                # 阶段 5：Agent 自动创建的工单草稿（无则为 null）
+                                "agent_ticket": agent_ticket_payload,
                                 "attachment_ids": attachment_ids or None,
                                 "attachment_parse_status": final_state.get("attachment_parse_status", attachment_bundle.get("attachment_parse_status", "none")),
                             },

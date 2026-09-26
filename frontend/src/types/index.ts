@@ -76,6 +76,13 @@ export interface JudgeResult {
   reason?: string
 }
 
+// 阶段 5：Agent 自动创建的工单草稿引用（仅 id/编号/状态，详情走 /api/tickets）
+export interface AgentTicketRef {
+  id: string
+  ticket_number: string
+  status: string
+}
+
 export interface Message {
   id: string
   role: 'user' | 'assistant'
@@ -89,6 +96,8 @@ export interface Message {
   safety_level?: string | null
   safety_situation?: string | null
   escalation_required?: boolean | null
+  recommended_action?: string | null  // 阶段 5: answer/followup/create_ticket/escalate
+  agent_ticket?: AgentTicketRef | null  // 阶段 5: Agent 自动创建的草稿引用
   intent?: string | null
   metadata_constraints?: Record<string, string> | null
   document_type_priority?: string[] | null
@@ -129,6 +138,8 @@ export interface ChatMeta {
   intent?: string | null
   metadata_constraints?: Record<string, string> | null
   document_type_priority?: string[] | null
+  recommended_action?: string | null  // 阶段 5: 业务决策
+  agent_ticket?: AgentTicketRef | null  // 阶段 5: Agent 建单草稿引用
   attachment_ids?: string[] | null
   attachment_parse_status?: string | null
 }

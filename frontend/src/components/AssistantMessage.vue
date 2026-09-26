@@ -1,6 +1,7 @@
 <!-- frontend/src/components/AssistantMessage.vue -->
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import type { Message, FeedbackRating, UselessReason } from '@/types'
 import { useChatStore } from '@/stores/chat'
 import { Copy, Check, RefreshCw, ThumbsUp, ThumbsDown, Bug, ShieldAlert, Headset, Ticket } from 'lucide-vue-next'
@@ -13,7 +14,18 @@ import { putFeedback } from '@/api/feedback'
 
 const props = defineProps<{ message: Message }>()
 const store = useChatStore()
+const router = useRouter()
 const copied = ref(false)
+
+// 阶段 5：Agent 已自动创建工单草稿（仅草稿，提交仍由用户确认）
+const agentTicket = computed(() =>
+  props.message.recommended_action === 'create_ticket' ? props.message.agent_ticket ?? null : null
+)
+
+function openAgentTicket() {
+  const ticket = agentTicket.value
+  if (ticket?.id) router.push(`/tickets/${ticket.id}`)
+}
 
 const intentLabels: Record<string, string> = {
   product_parameter: '产品参数',
@@ -181,6 +193,26 @@ async function submitFeedback(rating: FeedbackRating, uselessReason?: UselessRea
         >
           <Ticket class="h-3.5 w-3.5" />
           生成售后工单
+        </button>
+      </div>
+
+      <!-- 阶段 5：Agent 已自动创建工单草稿（草稿不提交，用户确认后进入管理端） -->
+      <div
+        v-if="agentTicket"
+        class="flex flex-wrap items-center gap-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-900"
+        data-testid="agent-ticket-notice"
+      >
+        <Ticket class="h-4 w-4 shrink-0 text-sky-600" />
+        <span>
+          已为你生成售后工单草稿 <span class="font-semibold">{{ agentTicket.ticket_number }}</span>
+          （{{ agentTicket.status === 'draft' ? '待你确认提交' : agentTicket.status }}）。
+        </span>
+        <button
+          class="flex items-center gap-1 rounded-md border border-sky-300 bg-white px-2 py-1 font-medium text-sky-800 transition-colors hover:bg-sky-100"
+          data-testid="view-agent-ticket"
+          @click="openAgentTicket"
+        >
+          查看工单
         </button>
       </div>
 

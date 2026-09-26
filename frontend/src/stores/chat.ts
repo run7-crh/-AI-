@@ -485,10 +485,12 @@ export const useChatStore = defineStore('chat', () => {
               if (meta.escalation_required !== undefined) {
                 m.escalation_required = meta.escalation_required
               }
-              // 阶段 3 字段：旧后端没有时保持 undefined，避免改动旧消息。
+              // 阶段 3/5 字段：旧后端没有时保持 undefined，避免改动旧消息。
               if (meta.intent !== undefined) m.intent = meta.intent
               if (meta.metadata_constraints !== undefined) m.metadata_constraints = meta.metadata_constraints
               if (meta.document_type_priority !== undefined) m.document_type_priority = meta.document_type_priority
+              if (meta.recommended_action !== undefined) m.recommended_action = meta.recommended_action
+              if (meta.agent_ticket !== undefined) m.agent_ticket = meta.agent_ticket
               if (meta.attachment_ids?.length) {
                 m.attachment_status = {
                   phase: 'context',
