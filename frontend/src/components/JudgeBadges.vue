@@ -16,6 +16,8 @@ const routeLabels: Record<string, string> = {
   online: '联网搜索',
   decomposition: '多步推理',
   fallback: '降级联网',
+  chitchat: '闲聊',
+  followup: '主动追问',
 }
 
 const routeLabel = computed(() =>

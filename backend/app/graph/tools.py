@@ -136,12 +136,22 @@ class SubQuerySchema(BaseModel):
     sub_query: str  # 子问题文本
 
 
+# 阶段 3：单个信息缺口的结构化描述（信息充分性判断产出）
+class InformationGap(BaseModel):
+    """一条"为什么还不能开始诊断"的缺口说明。"""
+
+    field: str   # 缺口字段：product_model / component / fault_type / symptoms / situation 等
+    reason: str  # 缺失原因，追问时原样向用户解释
+
+
 # 定义问题分解输出 schema
 class DecomposeSchema(BaseModel):
     """P0-2: 问题分解的输出 schema（意图分类 + 多步推理判断）。
 
     阶段 2: 追加安全评估字段，全部带默认值——旧模型输出（或旧测试 fixture）
     不含这些字段时仍可正常解析，向后兼容。
+    阶段 3: 追加信息充分性字段，同为可选默认值；LLM 未给出时保持 None/空，
+    路由层按"未评估"处理，绝不追问。
     """
     is_chitchat: bool                  # 是否闲聊
     needs_decomposition: bool          # 是否需要分解
@@ -154,6 +164,9 @@ class DecomposeSchema(BaseModel):
     safety_level: str = "none"         # "high" / "none"
     safety_situation: str = "unknown"  # "in_flight" / "landed" / "charging" / "unknown"
     user_requests_human: bool = False  # 用户明确要求转人工
+    information_sufficient: bool | None = None  # 阶段 3：信息是否足以开始诊断
+    information_gaps: list[InformationGap] = []  # 阶段 3：不足时的缺口清单
+    symptoms: list[str] = []           # 阶段 3：用户描述到的故障现象关键词
 
 
 # 用 tenacity 装饰器配置重试：最多3次、指数退避、ValueError 不重试、抛出原异常

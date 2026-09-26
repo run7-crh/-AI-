@@ -198,7 +198,19 @@ async def chat_stream(
             body.conversation_id, user_message_id, attachment_id
         ):
             raise HTTPException(status_code=400, detail="attachment_not_ready")
-    history = await store.get_history(body.conversation_id, limit=10, user_id=user.id)  # 取最近 10 条历史
+    history_full = await store.get_history(body.conversation_id, limit=10, user_id=user.id)  # 取最近 10 条历史
+    # 阶段 3: 追问守卫——上一条 assistant 回答是否为追问轮（route_path=="followup"）。
+    # get_history 额外返回 route_path；LLM 历史只消费 role/content，构造输入前剥离。
+    last_assistant = next(
+        (m for m in reversed(history_full) if m.get("role") == "assistant"), None
+    )
+    followup_just_asked = bool(
+        last_assistant and last_assistant.get("route_path") == "followup"
+    )
+    history = [
+        {"role": m.get("role"), "content": m.get("content")}
+        for m in history_full
+    ]
 
     # 阶段 2: 排查失败计数——用户"确认执行且仍无效"时对上一轮故障累加，
     # 并检查是否存在达到阈值的故障，为图注入 prior_troubleshoot_failed
@@ -222,6 +234,7 @@ async def chat_stream(
         "history": history[:-1],     # 排除刚加入的 user 消息
         "judge_log": [],             # 空的判断日志数组
         "prior_troubleshoot_failed": prior_troubleshoot_failed,  # 阶段 2: 两次排查无效标记
+        "followup_just_asked": followup_just_asked,  # 阶段 3: 上一轮刚追问过（最多连续追问 1 轮）
         "attachment_ids": attachment_ids,
         "attachment_context": attachment_bundle.get("attachment_context", ""),
         "attachment_evidence": attachment_bundle.get("attachment_evidence", []),
@@ -430,6 +443,9 @@ async def chat_stream(
                                 "intent": final_state.get("intent"),
                                 "metadata_constraints": final_state.get("metadata_constraints"),
                                 "document_type_priority": final_state.get("document_type_priority"),
+                                # 阶段 3：信息充分性与业务决策（可选新增字段，旧前端忽略）
+                                "recommended_action": final_state.get("recommended_action"),
+                                "information_gaps": final_state.get("information_gaps"),
                                 "attachment_ids": attachment_ids or None,
                                 "attachment_parse_status": final_state.get("attachment_parse_status", attachment_bundle.get("attachment_parse_status", "none")),
                             },

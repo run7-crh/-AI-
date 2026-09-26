@@ -12,6 +12,7 @@ STAGE_LABELS = {
     "rewrite_query": "正在理解问题...",          # 意图改写
     "decompose_question": "正在分析问题类型...",  # 意图分类+分解
     "chitchat_node": "正在回应...",              # 闲聊
+    "ask_followup": "正在向你确认关键信息...",    # 阶段 3: 主动追问
     "judge_relevance": "正在判断问题类型...",     # 相关性判断
     "rag_retrieve": "正在检索知识库...",         # RAG 检索
     "rag_quality_eval": "正在评估检索质量...",   # 检索质量评估
@@ -42,7 +43,11 @@ TRACE_OUTPUT_FIELDS: dict[str, list[str]] = {
         "safety_level",                                         # 阶段 2: 安全等级
         "safety_situation",                                     # 阶段 2: 设备状态
         "user_requests_human",                                  # 阶段 2: 要求人工
+        "issue_profile",                                        # 阶段 3: 问题结构化画像
+        "information_sufficient",                               # 阶段 3: 信息充分性
+        "information_gaps",                                     # 阶段 3: 缺口清单
     ],
+    "ask_followup": ["information_gaps", "judge_log"],          # 阶段 3: 追问依据
     "judge_relevance": ["is_relevant", "judge_log"],            # 相关性判断
     "rag_retrieve": ["retrieval_result", "avg_reranker_score"], # 检索结果
     "rag_quality_eval": ["rag_quality_pass", "judge_log"],      # 检索质量

@@ -44,6 +44,7 @@ from app.graph.prompts import (
     IS_COMBINED_QUALITY_PROMPT,  # 合并质量评估提示词
     SAFETY_EMERGENCY_DIRECTIVE,  # 阶段 2: 紧急模式片段（高风险时拼接）
     HUMAN_ESCALATION_DIRECTIVE,  # 阶段 2: 转人工模式片段（升级时拼接）
+    FOLLOWUP_PROMPT,         # 阶段 3: 主动追问提示词（信息不足快速通道）
 )
 # 导入全局配置，获取模型名称等运行参数
 from app.config import settings
@@ -274,13 +275,147 @@ async def decompose_question_node(state: AgentState) -> dict:
             # 安全判断优先于普通意图，确保高风险问题先走 safety 元数据优先级。
             intent = "flight_safety"
         constraints, priority = metadata_policy(intent, state.get("rewritten_query", ""), structured)
-        result.update({"intent": intent, "metadata_constraints": constraints, "document_type_priority": priority})
+        # 阶段 3: 信息充分性与缺口清洗（非法条目丢弃；声称不足却给不出缺口时
+        # 保守视为充分——追问必须言之有物，不允许空转一轮）
+        raw_sufficient = structured.get("information_sufficient")
+        information_sufficient = raw_sufficient if isinstance(raw_sufficient, bool) else None
+        information_gaps: list[dict] = []
+        raw_gaps = structured.get("information_gaps")
+        if isinstance(raw_gaps, list):
+            for gap in raw_gaps:
+                if not isinstance(gap, dict) or len(information_gaps) >= 5:
+                    continue
+                gap_field = str(gap.get("field") or "").strip()
+                gap_reason = str(gap.get("reason") or "").strip()
+                if gap_field and gap_reason:
+                    information_gaps.append({"field": gap_field, "reason": gap_reason})
+        if information_sufficient is False and not information_gaps:
+            information_sufficient = True
+        raw_symptoms = structured.get("symptoms")
+        symptoms = [
+            str(item).strip()
+            for item in (raw_symptoms or [])
+            if isinstance(item, str) and str(item).strip()
+        ][:8]
+        # issue_profile 与 metadata_constraints 同源（constraints 即其检索投影），
+        # 供诊断节点、管理端分析与工单快照消费，不形成第二套机型/故障数据源。
+        issue_profile = {
+            "product_model": constraints.get("product_model"),
+            "component": constraints.get("component"),
+            "fault_type": constraints.get("fault_type"),
+            "symptoms": symptoms,
+            "situation": raw_situation if safety_flag else None,
+        }
+        result.update({
+            "intent": intent,
+            "metadata_constraints": constraints,
+            "document_type_priority": priority,
+            "issue_profile": issue_profile,
+            "information_sufficient": information_sufficient,
+            "information_gaps": information_gaps,
+        })
     if not all(key in structured for key in ("is_chitchat", "needs_decomposition", "reasoning_steps")) \
             and not (inferred_flag or inferred_human):
         return {"is_chitchat": result["is_chitchat"],
                 "needs_decomposition": result["needs_decomposition"],
                 "reasoning_steps": result["reasoning_steps"]}
     return result
+
+
+# ============================================================================
+# 阶段 3：信息充分性守卫与主动追问快速通道
+# ============================================================================
+# 追问只对"需要诊断"的意图有意义：参数/原理/SOP/闲聊等问题信息不足也应直接回答。
+FOLLOWUP_ELIGIBLE_INTENTS = ("troubleshooting", "flight_safety")
+
+
+# 定义信息不足追问守卫函数：全部条件同时满足才允许追问，缺一不可（保守默认不追问）
+def _should_followup(state: dict) -> bool:
+    """判定本轮是否应进入 ask_followup 快速通道（docs/agent/target_architecture.md §5.1）。
+
+    - 信息必须被显式评估为不足（LLM 未给出 = None 时不追问）
+    - 缺口清单非空（追问必须言之有物）
+    - 仅故障排查 / 飞行安全意图
+    - 高风险永不追问：必须立即给保守指引，不允许"只问不答"
+    - 上一轮刚追问过（followup_just_asked，chat 层注入）：最多连续追问 1 轮
+    - 用户要求人工 / 已排查失败 / 需要多步分解 / 携带附件：均不追问
+    """
+    if state.get("information_sufficient") is not False:
+        return False
+    gaps = state.get("information_gaps") or []
+    if not gaps:
+        return False
+    if state.get("intent") not in FOLLOWUP_ELIGIBLE_INTENTS:
+        return False
+    if state.get("safety_level") == "high" or state.get("safety_flag") is True:
+        return False
+    if state.get("followup_just_asked") is True:
+        return False
+    if state.get("user_requests_human") is True:
+        return False
+    if state.get("prior_troubleshoot_failed") is True:
+        return False
+    if state.get("needs_decomposition") is True:
+        return False
+    if state.get("attachment_evidence"):
+        return False
+    return True
+
+
+# 定义追问节点函数：只问缺口，不给排查步骤
+async def ask_followup_node(state: AgentState, config: RunnableConfig = None) -> dict:
+    """主动追问快速通道（阶段 3）。
+
+    信息不足时本轮唯一任务是问清缺失信息：直接生成追问并结束（不检索、不进质量
+    检查——追问句没有事实断言）。追问文本进入 history，下一轮由 rewrite_query
+    指代消解、decompose 重新评估充分性；followup_just_asked 保证不连环追问。
+    """
+    gaps = state.get("information_gaps") or []
+    gaps_text = "\n".join(
+        f"- 缺口[{gap.get('field', '?')}]: {gap.get('reason', '')}"
+        for gap in gaps
+        if isinstance(gap, dict)
+    ) or "- 关键信息缺失（机型/故障现象未说明）"
+    try:                               # 尝试流式生成追问
+        result = await call_llm(
+            system_prompt=FOLLOWUP_PROMPT.format(
+                query=state.get("query", ""), gaps=gaps_text
+            ),
+            user_input=state.get("query", ""),
+            temperature=0.5,
+            history=state.get("history", []),
+            model=settings.MODEL_PRO_CHAT,
+            stream=True,
+            config=config,
+        )
+        followup_text = result["text"].strip()
+        if not followup_text:
+            raise ValueError("empty followup")
+    except Exception as e:             # 生成失败降级为静态追问，不中断会话
+        logger.warning(f"ask_followup 生成失败，降级为静态追问: {e}")
+        asked = "、".join(
+            str(gap.get("field", "")) for gap in gaps if isinstance(gap, dict)
+        ) or "设备型号与故障现象"
+        followup_text = (
+            "为了给你准确的判断，我需要先确认几项信息（" + asked + "）。"
+            "请补充你的无人机具体型号和故障的具体表现；"
+            "如果设备当前正在飞行，请先确保安全降落。"
+        )
+    return {                           # 追问即本轮最终回答，直接结束
+        "final_answer": followup_text,
+        "route_path": "followup",
+        "recommended_action": "followup",
+        "escalation_required": False,
+        "judge_log": [{
+            "judge_type": "information_sufficiency",
+            "passed": False,
+            "raw_output": {
+                "reason": "信息不足，进入主动追问（不检索不诊断）",
+                "gaps": gaps,
+                "intent": state.get("intent"),
+            },
+        }],
+    }
 
 
 # ============================================================================

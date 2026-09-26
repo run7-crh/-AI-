@@ -1,9 +1,10 @@
 # backend/app/graph/builder.py
 """LangGraph 图构建（对齐 Dify 工作流）。
 
-工作流拓扑（13 节点 + 5 路由函数，含 CRAG 回路）：
+工作流拓扑（14 节点 + 5 路由函数，含 CRAG 回路与追问快速通道）：
   rewrite_query → decompose_question
     ├─ is_chitchat → chitchat_node → END
+    ├─ 信息不足（AGENT_FOLLOWUP_ENABLED 且守卫通过）→ ask_followup → END
     ├─ needs_decomposition → multi_step_reason → combined_quality_check
     │                                          ├─ pass → END
     │                                          └─ fail → quality_fail → END
@@ -38,11 +39,13 @@ from langgraph.graph import StateGraph, END
 
 # 导入工作流状态类型定义
 from app.graph.state import AgentState
+from app.config import settings
 # 导入所有图节点函数
 from app.graph.nodes import (
     rewrite_query_node,            # 意图改写节点
     decompose_question_node,       # 意图分类+分解节点
     chitchat_node,                 # 闲聊节点
+    ask_followup_node,             # 阶段 3: 主动追问节点（信息不足快速通道）
     judge_relevance_node,          # 相关性判断节点
     rag_retrieve_node,             # RAG 检索节点
     rag_quality_eval_node,         # 检索质量评估节点
@@ -53,6 +56,7 @@ from app.graph.nodes import (
     multi_step_reason_node,        # 多步推理节点
     combined_quality_check_node,   # 合并质量评估节点
     quality_fail_node,             # 质量不合格节点
+    _should_followup,              # 阶段 3: 追问守卫（路由用）
 )
 
 
@@ -78,16 +82,22 @@ def route_after_rag_quality(state):
 
 # 定义意图分类后的路由函数
 def route_after_decompose(state):
-    """意图分类后路由：chitchat → chitchat_node，decomposition → multi_step_reason，else → judge_relevance。
+    """意图分类后路由：chitchat → chitchat_node，followup → ask_followup，
+    decomposition → multi_step_reason，else → judge_relevance。
 
     阶段 2: 高风险情形（safety_level=high）覆盖闲聊快速通道——即使被误判为闲聊，
     也必须先检索安全/故障知识再回答，不允许闲聊节点绕过安全处置。
+    阶段 3: 信息不足且守卫全部通过时进入主动追问快速通道（AGENT_FOLLOWUP_ENABLED
+    开关控制，关闭即回旧行为）；追问优先级低于高风险覆盖（高风险永不追问），
+    高于多步分解（_should_followup 要求 needs_decomposition=false）。
     """
     high_risk = state.get("safety_level") == "high" or state.get("safety_flag") is True
     if state.get("is_chitchat") and not high_risk and not state.get("attachment_evidence"):
         # Only the no-attachment greeting path remains lightweight; an
         # explicitly selected attachment must enter the evidence-aware path.
         return "chitchat_node"               # 走闲聊节点
+    if settings.AGENT_FOLLOWUP_ENABLED and _should_followup(state):
+        return "ask_followup"                # 信息不足 → 主动追问
     # 结构化输出可能出现 needs_decomposition=true 但没有可执行子问题；
     # 此时回到普通相关性判断，避免空 context 直接生成"多步答案"。
     if state.get("needs_decomposition") and any(  # 声称需分解且存在有效子问题
@@ -125,6 +135,7 @@ def build_graph(rag_retriever):
     graph.add_node("rewrite_query", rewrite_query_node)                    # 意图改写节点
     graph.add_node("decompose_question", decompose_question_node)          # 意图分类+分解节点
     graph.add_node("chitchat_node", chitchat_node)                         # 闲聊节点
+    graph.add_node("ask_followup", ask_followup_node)                      # 阶段 3: 主动追问节点
     # judge_relevance 需注入 rag_retriever：用于轻量检索（top_k=1）+ 阈值短路
     graph.add_node("judge_relevance", partial(judge_relevance_node, rag_retriever=rag_retriever))  # 注入检索器
     graph.add_node("rag_retrieve", partial(rag_retrieve_node, rag_retriever=rag_retriever))        # 检索节点
@@ -143,12 +154,13 @@ def build_graph(rag_retriever):
     # 边：rewrite_query → decompose_question
     graph.add_edge("rewrite_query", "decompose_question")  # 改写后进入分解
 
-    # 边：decompose_question → chitchat_node / multi_step_reason / judge_relevance
+    # 边：decompose_question → chitchat_node / ask_followup / multi_step_reason / judge_relevance
     graph.add_conditional_edges(             # 条件边（按分类结果分流）
         "decompose_question",                # 起始节点
         route_after_decompose,               # 路由函数
         {
             "chitchat_node": "chitchat_node",      # 闲聊路径
+            "ask_followup": "ask_followup",        # 阶段 3: 信息不足追问路径
             "multi_step_reason": "multi_step_reason",  # 多步推理路径
             "judge_relevance": "judge_relevance",  # 普通路径
         },
@@ -156,6 +168,9 @@ def build_graph(rag_retriever):
 
     # P1-6: chitchat_node → END（闲聊直接结束，跳过质量评估）
     graph.add_edge("chitchat_node", END)     # 闲聊结束工作流
+
+    # 阶段 3: ask_followup → END（追问即本轮最终回答，不检索、不进质量检查）
+    graph.add_edge("ask_followup", END)      # 追问结束工作流
 
     # 边：judge_relevance → rag_retrieve / web_search（条件路由）
     graph.add_conditional_edges(             # 条件边

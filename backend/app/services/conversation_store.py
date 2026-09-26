@@ -341,7 +341,9 @@ class ConversationStore:
         async with aiosqlite.connect(self.db_path) as db:  # 打开连接
             await _configure_db(db)                      # 应用连接级配置
             db.row_factory = aiosqlite.Row               # 行以字典式 Row 返回
-            query = "SELECT m.role, m.content FROM messages m JOIN conversations c ON c.id = m.conversation_id WHERE m.conversation_id = ?"
+            # 阶段 3: 附带 route_path，供 chat 层判定"上一轮是否追问"（followup 守卫）。
+            # 消费方（LLM 历史）只读 role/content，多余键在调用侧剥离。
+            query = "SELECT m.role, m.content, m.route_path FROM messages m JOIN conversations c ON c.id = m.conversation_id WHERE m.conversation_id = ?"
             params = [conv_id]
             if user_id is not None:
                 query += " AND c.user_id = ?"
@@ -350,4 +352,7 @@ class ConversationStore:
             params.append(limit)
             cursor = await db.execute(query, params)
             rows = await cursor.fetchall()               # 取查询结果
-            return [{"role": r["role"], "content": r["content"]} for r in reversed(rows)]  # 反转为时间正序
+            return [                                     # 反转为时间正序
+                {"role": r["role"], "content": r["content"], "route_path": r["route_path"]}
+                for r in reversed(rows)
+            ]

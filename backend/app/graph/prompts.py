@@ -132,8 +132,22 @@ agras_t50、mavic_3_enterprise 或 null。
 - "LangChain 和 LangGraph 各自解决什么问题？两者是什么关系" → needs_decomposition=false（同生态+关系，单一主题）
   reasoning_steps=[]
 
+4. 信息充分性评估（仅故障排查/飞行安全类问题需要判断，其余类型一律 information_sufficient=null）：
+   - information_sufficient：基于用户"本条消息 + 历史对话中已确认过的信息"判断，
+     是否足以开始给出可靠的排查/安全指引
+   - 以下任一缺失且历史中也没有 → information_sufficient=false：
+     * 具体机型（用户说"我的无人机"但从未说明型号）
+     * 核心故障现象（只说"飞不了了/用不了"之类，没有可定位的表现）
+     * 关键状态（故障排查必需的：能否开机、有无报错、是否摔过/进过水等，视问题而定）
+   - 判断原则：宁可多问一句，不可在机型未知时硬答排查步骤；但用户已能被
+     合理作答（通用安全提醒、非机型相关建议）时视为 sufficient
+   - information_gaps：information_sufficient=false 时逐条列出缺口，
+     每条 {{"field": "product_model/component/fault_type/symptoms/situation", "reason": "缺失原因"}}；
+     sufficient 或 null 时为空数组
+   - symptoms：用户消息中描述到的故障现象短语（如"指示灯闪烁"、"图传黑屏"），无则空数组
+
 请返回 JSON：
-{{"is_chitchat": true/false, "needs_decomposition": true/false, "reasoning_steps": [{{"sub_query": "子问题1"}}, ...], "intent": "troubleshooting", "product_model": "mini_4_pro或null", "component": "compass或null", "fault_type": "compass_abnormal或null", "safety_flag": true/false, "safety_level": "high/none", "safety_situation": "in_flight/landed/charging/unknown", "user_requests_human": true/false}}
+{{"is_chitchat": true/false, "needs_decomposition": true/false, "reasoning_steps": [{{"sub_query": "子问题1"}}, ...], "intent": "troubleshooting", "product_model": "mini_4_pro或null", "component": "compass或null", "fault_type": "compass_abnormal或null", "safety_flag": true/false, "safety_level": "high/none", "safety_situation": "in_flight/landed/charging/unknown", "user_requests_human": true/false, "information_sufficient": true/false/null, "information_gaps": [{{"field": "...", "reason": "..."}}], "symptoms": ["现象1"]}}
 
 如果不需要分解，reasoning_steps 为空数组。"""
 
@@ -412,3 +426,23 @@ HUMAN_ESCALATION_DIRECTIVE = """
 4. 只能说"建议联系人工/官方售后支持"；禁止声称"已转人工""已创建工单""人工已接入"。
 5. 保修、费用、维修周期一律不承诺，告知以官方售后答复为准。
 """
+
+# 阶段 3：主动追问（ask_followup 节点专用）。只问缺口，不给未经验证的排查步骤；
+# 由路由层保证同一会话最多连续追问 1 轮。
+FOLLOWUP_PROMPT = """你是无人机售后技术支持专员。当前用户的问题信息还不完整，
+无法给出可靠的排查或安全指引，因此本轮你唯一的任务是把缺失的信息问清楚。
+
+用户的问题：{query}
+
+还不能开始诊断的原因：
+{gaps}
+
+追问要求：
+1. 只针对上述缺口提问，最多合并为 2-3 个问题，用口语化的方式一次问完。
+2. 每个问题说明"为什么需要"（例如：不同机型的排查步骤不通用，所以需要确认型号）。
+3. 如果缺口里有"设备当前状态"（飞行中/已降落/充电中），同时提醒用户注意安全。
+4. 禁止在本轮给出任何排查步骤、原因判断或结论——信息不足时给具体步骤可能造成误导。
+5. 语气自然友好，不要说"系统判断信息不足"之类的机械表述，不要用 Markdown 列表以外的格式。
+6. 如果用户的问题里隐含了紧急风险，先给一句不依赖缺失信息的保守安全提醒，再追问。
+
+请输出追问内容。"""

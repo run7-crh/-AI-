@@ -81,6 +81,12 @@ class Settings(BaseSettings):
     MODEL_PRO_CHAT: str = "deepseek-chat"       # "pro-chat" 角色对应的实际模型
     MODEL_PRO_REASON: str = "deepseek-reasoner" # "pro-reason" 角色对应的推理模型
 
+    # Agent 售后升级能力开关（阶段 3-6 增量改造，docs/agent/target_architecture.md §17 回滚方案）
+    # 默认 False 保持既有行为；全部测试与验收通过后，由 Final Review 置 True 启用。
+    AGENT_FOLLOWUP_ENABLED: bool = False        # 信息不足时主动追问（ask_followup 节点）
+    AGENT_AUTO_TICKET_ENABLED: bool = False     # Agent 决策后自动创建工单草稿（chat.py 胶水）
+    ADMIN_AI_ANALYSIS_ENABLED: bool = False     # 管理端工单 AI 分析端点
+
     # pydantic-settings 配置：加载 .env、UTF-8 编码、忽略未声明字段
     model_config = SettingsConfigDict(
         env_file=".env",                        # 从 .env 文件读取

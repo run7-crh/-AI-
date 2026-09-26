@@ -60,6 +60,18 @@ class AgentState(TypedDict):
     prior_troubleshoot_failed: Optional[bool]
     escalation_required: Optional[bool]  # 最终是否建议转人工（生成节点综合判定）
 
+    # 阶段 3（Agent 售后升级）：问题理解与信息充分性
+    # 机型/部件/故障与 metadata_constraints 同源同值（constraints 是其检索投影，
+    # 继续供检索器 / query_log / 工单快照消费，不形成第二数据源）
+    issue_profile: Optional[dict]                  # {product_model, component, fault_type, symptoms, situation}
+    information_sufficient: Optional[bool]         # None=未评估（非排查类意图，LLM 未给出时不追问）
+    information_gaps: Optional[list[dict]]         # [{"field": "...", "reason": "..."}]
+    # 输入字段：chat.py 检查上一轮 assistant 的 route_path=="followup" 后注入，
+    # 保证同一会话最多连续追问 1 轮，第二轮必须尽力作答
+    followup_just_asked: Optional[bool]
+    # 阶段 3/4：业务决策（ask_followup 置 followup；decide_action 置其余值）
+    recommended_action: Optional[str]    # "answer" / "followup" / "create_ticket" / "escalate"
+
     # 输出
     final_answer: str                                    # 最终回答文本
     route_path: str                                      # 路由路径："local" / "online" / "chitchat" / "decomposition"
