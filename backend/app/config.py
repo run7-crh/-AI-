@@ -82,10 +82,11 @@ class Settings(BaseSettings):
     MODEL_PRO_REASON: str = "deepseek-reasoner" # "pro-reason" 角色对应的推理模型
 
     # Agent 售后升级能力开关（阶段 3-6 增量改造，docs/agent/target_architecture.md §17 回滚方案）
-    # 默认 False 保持既有行为；全部测试与验收通过后，由 Final Review 置 True 启用。
-    AGENT_FOLLOWUP_ENABLED: bool = False        # 信息不足时主动追问（ask_followup 节点）
-    AGENT_AUTO_TICKET_ENABLED: bool = False     # Agent 决策后自动创建工单草稿（chat.py 胶水）
-    ADMIN_AI_ANALYSIS_ENABLED: bool = False     # 管理端工单 AI 分析端点
+    # 验收（全部测试 + 真实评估基线）通过后默认启用；任一能力出现严重问题时
+    # 置 False 可即时回退旧逻辑，不影响旧系统核心功能。
+    AGENT_FOLLOWUP_ENABLED: bool = True         # 信息不足时主动追问（ask_followup 节点）
+    AGENT_AUTO_TICKET_ENABLED: bool = True      # Agent 决策后自动创建工单草稿（chat.py 胶水）
+    ADMIN_AI_ANALYSIS_ENABLED: bool = True      # 管理端工单 AI 分析端点
 
     # pydantic-settings 配置：加载 .env、UTF-8 编码、忽略未声明字段
     model_config = SettingsConfigDict(

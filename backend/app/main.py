@@ -247,7 +247,7 @@ async def lifespan(app: FastAPI):
 
 
 # 创建 FastAPI 应用
-app = FastAPI(title="学AI必备助手 API", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="无人机智能售后技术支持 Agent API", version="2.0.0", lifespan=lifespan)
 # P1-10: 注册 slowapi 限速器和异常处理器
 app.state.limiter = limiter              # 把限速器挂到应用状态
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # 限流超限统一响应
