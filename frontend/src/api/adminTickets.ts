@@ -47,3 +47,49 @@ export async function appendTicketEvent(
     body: JSON.stringify({ event_type: eventType, body }),
   })).json()
 }
+
+// 阶段 6：管理端 AI 售后分析（结构由后端 TicketAnalysisService 产出）
+export interface AgentAnalysisKnowledge {
+  id?: string
+  title?: string
+  source?: string
+  document_type?: string | null
+  product_model?: string | null
+  fault_type?: string | null
+  data_type?: string | null
+  score?: number | null
+}
+
+export interface AgentSuggestion {
+  ticket_id: string
+  ticket_number?: string
+  summary?: string
+  product_model?: string | null
+  fault_category?: string | null
+  diagnosis?: {
+    summary?: string
+    possible_causes?: { cause?: string; status?: string; evidence_ids?: string[] }[]
+    recommended_steps?: { step?: string; expected?: string; stop_condition?: string }[]
+    safety_warning?: string | null
+    confidence?: number
+    citations?: { evidence_id?: string; document_name?: string; data_type?: string | null }[]
+  } | null
+  knowledge?: AgentAnalysisKnowledge[]
+  sop_recommendations?: AgentAnalysisKnowledge[]
+  handling_advice?: string[]
+  suggested_reply?: string
+  risk_flags?: string[]
+  high_risk?: boolean
+  confidence?: number
+  profile_source?: string
+  model?: string
+  analyzed_at?: string
+  disclaimers?: string[]
+}
+
+export async function analyzeTicketWithAI(ticketId: string): Promise<AgentSuggestion> {
+  return (await apiFetch(
+    `/api/admin/tickets/${encodeURIComponent(ticketId)}/ai-analysis`,
+    { method: 'POST' },
+  )).json()
+}

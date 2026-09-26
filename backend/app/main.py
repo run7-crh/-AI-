@@ -225,6 +225,19 @@ async def lifespan(app: FastAPI):
         _graph = build_graph(_indexer.get_retriever())  # 构建工作流
         chat_module.set_graph(_graph)    # 注入图到聊天路由
         index_api.set_indexer(_indexer)  # 注入索引器到索引路由
+        # 阶段 6: 管理端 AI Copilot——复用同一检索器装配工单分析服务
+        from app.services.ticket_analysis_service import TicketAnalysisService  # 延迟导入
+        from app.api import admin_tickets as admin_tickets_module  # 延迟导入
+
+        admin_tickets_module.set_analysis_service(
+            TicketAnalysisService(
+                ticket_store=_ticket_store,
+                conversation_store=_store,
+                query_log_store=_query_log_store,
+                attachment_store=_attachment_store,
+                rag_retriever=_indexer.get_retriever(),
+            )
+        )
         logger.info("Graph 初始化成功")  # 记录日志
     except Exception as e:               # 初始化失败
         logger.warning(f"Graph 初始化失败（开发期可继续）: {e}")  # 降级告警

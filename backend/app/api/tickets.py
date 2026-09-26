@@ -24,8 +24,9 @@ _service: TicketService | None = None
 _store: TicketStore | None = None
 
 # Event types that carry internal admin context and must never reach the
-# regular user detail response.
-_INTERNAL_EVENT_TYPES = {"internal_note"}
+# regular user detail response.  agent_suggestion (阶段 6) carries the AI
+# copilot's internal analysis for staff and is likewise staff-only.
+_INTERNAL_EVENT_TYPES = {"internal_note", "agent_suggestion"}
 
 
 def set_service(service: TicketService, store: TicketStore) -> None:
