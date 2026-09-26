@@ -184,6 +184,7 @@ async def test_build_graph_local_path_end_to_end():
         mock_llm.side_effect = [
             {"text": "什么是 RAG 检索增强生成", "structured": None},  # rewrite_query
             {"text": "", "structured": {"is_chitchat": False, "needs_decomposition": False, "reasoning_steps": []}},  # decompose
+            {"text": "", "structured": {"summary": "RAG 概念解释", "confidence": 0.8, "citations": []}},  # diagnose（阶段 4）
             {"text": "RAG 是检索增强生成...", "structured": None},  # generate_local
             {"text": "", "structured": {"has_hallucination": False, "answer_quality_pass": True, "reason": "ok"}},  # combined_quality_check
         ]
@@ -325,6 +326,7 @@ async def test_build_graph_hallucination_routes_to_quality_fail():
         mock_llm.side_effect = [
             {"text": "幻觉测试", "structured": None},  # rewrite_query
             {"text": "", "structured": {"is_chitchat": False, "needs_decomposition": False, "reasoning_steps": []}},  # decompose
+            {"text": "", "structured": {"summary": "无法核实", "confidence": 0.8, "citations": []}},  # diagnose（阶段 4）
             {"text": "编造的答案", "structured": None},  # generate_local
             {"text": "", "structured": {"has_hallucination": True, "answer_quality_pass": True, "reason": "幻觉"}},  # combined_quality_check
         ]

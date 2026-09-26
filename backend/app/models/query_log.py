@@ -44,6 +44,8 @@ class QueryLogCreate(BaseModel):
     intent: Optional[str] = None                  # 售后意图
     metadata_constraints: Optional[dict] = None   # 检索元数据约束
     document_type_priority: Optional[list[str]] = None  # 文档类型优先级
+    recommended_action: Optional[str] = None      # 阶段 4: 业务决策 answer/followup/create_ticket/escalate
+    diagnosis_json: Optional[str] = None          # 阶段 4: 结构化诊断（JSON 字符串，可空）
     latency_ms: Optional[int] = None              # 处理延迟毫秒数（可选）
     error: Optional[str] = None                   # 异常描述（NULL 表示正常）
     created_at: str                               # 创建时间
@@ -77,6 +79,8 @@ class QueryLogRecord(BaseModel):
     intent: Optional[str] = None
     metadata_constraints: Optional[dict] = None
     document_type_priority: Optional[list[str]] = None
+    recommended_action: Optional[str] = None      # 阶段 4: 业务决策
+    diagnosis_json: Optional[str] = None          # 阶段 4: 结构化诊断 JSON
     latency_ms: Optional[int] = None              # 处理延迟毫秒数（可选）
     error: Optional[str] = None                   # 异常描述（NULL 表示正常）
     created_at: str                               # 创建时间

@@ -169,6 +169,54 @@ class DecomposeSchema(BaseModel):
     symptoms: list[str] = []           # 阶段 3：用户描述到的故障现象关键词
 
 
+# ============================================================================
+# 阶段 4：结构化诊断（diagnose 节点产出，机器可读；管理端 Copilot 复用同一结构）
+# ============================================================================
+class DiagnosisCause(BaseModel):
+    """一条可能原因，带三分标注与证据指针。"""
+
+    cause: str                        # 可能原因描述
+    status: str = "inferred"          # knowledge_based(知识库明确) / inferred(推断) / unverifiable(无法确认)
+    evidence_ids: list[str] = []      # 指向 retrieval_result 的 Evidence.id
+
+
+class DiagnosisStep(BaseModel):
+    """一条排查步骤，对齐七段式【建议排查】四要素。"""
+
+    step: str                         # 操作步骤（官方来源）
+    expected: str | None = None       # 预期现象
+    stop_condition: str | None = None # 何时立即停止
+    evidence_ids: list[str] = []      # 支撑该步骤的证据
+
+
+class DiagnosisCitation(BaseModel):
+    """一条来源引用，evidence_id 必须通过程序校验（⊆ retrieval ids）。"""
+
+    evidence_id: str                  # Evidence.id
+    document_id: str | None = None    # 所属文档 id
+    document_name: str = ""           # 与【来源：文档名】同源
+    data_type: str | None = None      # factual / synthetic（synthetic 永不作确诊依据）
+
+
+class DiagnosisSchema(BaseModel):
+    """结构化诊断输出 schema。
+
+    与 LOCAL_GEN_PROMPT 的七段式一一对应：summary↔问题判断、safety_warning↔安全提醒、
+    recommended_steps↔建议排查、possible_causes↔可能原因、information_gaps↔需要补充的
+    信息、citations↔来源依据、confidence+needs_human_service↔是否建议转人工的量化版。
+    """
+    summary: str                                        # 一句话问题判断
+    product_model: str | None = None                    # 确认后的机型
+    fault_type: str | None = None                       # 故障类型
+    possible_causes: list[DiagnosisCause] = []          # 按可能性排序
+    recommended_steps: list[DiagnosisStep] = []         # 官方来源支持的步骤
+    safety_warning: str | None = None                   # 安全提醒（无则空串）
+    information_gaps: list[InformationGap] = []         # 诊断后仍缺的信息
+    needs_human_service: bool = False                   # 决策信号：需售后/维修介入
+    confidence: float = 0.0                             # 0~1，decide_action 规则消费
+    citations: list[DiagnosisCitation] = []             # 程序校验后保留的引用
+
+
 # 用 tenacity 装饰器配置重试：最多3次、指数退避、ValueError 不重试、抛出原异常
 @retry(
     stop=stop_after_attempt(3),                     # 最多尝试3次

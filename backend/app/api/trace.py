@@ -16,6 +16,7 @@ STAGE_LABELS = {
     "judge_relevance": "正在判断问题类型...",     # 相关性判断
     "rag_retrieve": "正在检索知识库...",         # RAG 检索
     "rag_quality_eval": "正在评估检索质量...",   # 检索质量评估
+    "diagnose": "正在结合证据诊断...",           # 阶段 4: 结构化诊断
     "query_corrector": "正在优化检索词...",      # 查询纠正
     "web_search": "正在联网搜索...",             # 联网搜索
     "generate_local": "正在生成回答...",         # 本地生成
@@ -59,6 +60,8 @@ TRACE_OUTPUT_FIELDS: dict[str, list[str]] = {
         "quality_check_error",                                  # 检查错误
         "judge_log",                                            # 判断记录
     ],
+    "diagnose": ["diagnosis", "judge_log"],                     # 阶段 4: 结构化诊断
+    "decide_action": ["recommended_action", "auto_create_ticket", "escalation_required", "judge_log"],  # 阶段 4: 业务决策
     "quality_fail": ["quality_warning"],                        # 质量告警
 }
 # chitchat_node / generate_local / generate_online / multi_step_reason

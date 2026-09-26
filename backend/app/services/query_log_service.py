@@ -59,6 +59,8 @@ CREATE TABLE IF NOT EXISTS query_log (
     intent TEXT,
     metadata_constraints TEXT,
     document_type_priority TEXT,
+    recommended_action TEXT,
+    diagnosis_json TEXT,
     latency_ms INTEGER,
     error TEXT,
     created_at TEXT NOT NULL
@@ -122,6 +124,8 @@ class QueryLogStore:
                 "intent": "TEXT",
                 "metadata_constraints": "TEXT",
                 "document_type_priority": "TEXT",
+                "recommended_action": "TEXT",
+                "diagnosis_json": "TEXT",
                 "latency_ms": "INTEGER",
                 "error": "TEXT",
             }
@@ -150,8 +154,9 @@ class QueryLogStore:
                     judge_log_json, final_answer, answer_length, has_source,
                     models_used_json, token_usage_json, fault_key, safety_flag,
                     safety_level, safety_situation, escalation_required, intent,
-                    metadata_constraints, document_type_priority, latency_ms, error, created_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    metadata_constraints, document_type_priority, recommended_action,
+                    diagnosis_json, latency_ms, error, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     record.id,                           # 日志 id
                     record.conversation_id,              # 会话 id
@@ -177,6 +182,8 @@ class QueryLogStore:
                     record.intent,
                     json.dumps(record.metadata_constraints, ensure_ascii=False) if record.metadata_constraints is not None else None,
                     json.dumps(record.document_type_priority, ensure_ascii=False) if record.document_type_priority is not None else None,
+                    record.recommended_action,           # 阶段 4: 业务决策
+                    record.diagnosis_json,               # 阶段 4: 结构化诊断
                     record.latency_ms,                   # 延迟毫秒数
                     record.error,                        # 异常描述
                     record.created_at,                   # 创建时间

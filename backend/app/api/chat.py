@@ -446,6 +446,8 @@ async def chat_stream(
                                 # 阶段 3：信息充分性与业务决策（可选新增字段，旧前端忽略）
                                 "recommended_action": final_state.get("recommended_action"),
                                 "information_gaps": final_state.get("information_gaps"),
+                                # 阶段 4：结构化诊断（公开字段，引用已程序校验）
+                                "diagnosis": final_state.get("diagnosis"),
                                 "attachment_ids": attachment_ids or None,
                                 "attachment_parse_status": final_state.get("attachment_parse_status", attachment_bundle.get("attachment_parse_status", "none")),
                             },
@@ -574,6 +576,14 @@ async def _write_query_log(
         intent = final_state.get("intent")
         metadata_constraints = final_state.get("metadata_constraints")
         document_type_priority = final_state.get("document_type_priority")
+        recommended_action = final_state.get("recommended_action")  # 阶段 4: 业务决策
+        # 阶段 4: 结构化诊断序列化（失败为 None → 列写 NULL）
+        diagnosis_value = final_state.get("diagnosis")
+        diagnosis_json = (
+            json.dumps(diagnosis_value, ensure_ascii=False)
+            if isinstance(diagnosis_value, dict) and diagnosis_value
+            else None
+        )
     else:                                              # 异常/断开，字段填空
         rewritten_query = None                         # 改写后查询置空
         route_path = None                              # 路由置空
@@ -593,6 +603,8 @@ async def _write_query_log(
         intent = None
         metadata_constraints = None
         document_type_priority = None
+        recommended_action = None
+        diagnosis_json = None
 
     record = QueryLogCreate(                           # 构造日志记录
         id=log_id,                                     # 日志 id
@@ -619,6 +631,8 @@ async def _write_query_log(
         intent=intent,
         metadata_constraints=metadata_constraints,
         document_type_priority=document_type_priority,
+        recommended_action=recommended_action,   # 阶段 4: 业务决策
+        diagnosis_json=diagnosis_json,           # 阶段 4: 结构化诊断
         latency_ms=int((time.time() - t0) * 1000),     # 总延迟毫秒
         error=error_msg,                               # 错误信息
         created_at=datetime.now(timezone.utc).isoformat(),  # 创建时间

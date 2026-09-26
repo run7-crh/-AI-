@@ -71,6 +71,13 @@ class AgentState(TypedDict):
     followup_just_asked: Optional[bool]
     # 阶段 3/4：业务决策（ask_followup 置 followup；decide_action 置其余值）
     recommended_action: Optional[str]    # "answer" / "followup" / "create_ticket" / "escalate"
+    # 阶段 4：结构化诊断（diagnose 节点产出，仅 local 支路；失败为 None）
+    # 结构见 graph/tools.py 的 DiagnosisSchema：summary/possible_causes/
+    # recommended_steps/safety_warning/information_gaps/needs_human_service/
+    # confidence/citations（citations 已程序校验 ⊆ retrieval ids）
+    diagnosis: Optional[dict]
+    # 阶段 4：decide_action 规则输出——chat.py 据此调用 TicketService 建草稿
+    auto_create_ticket: Optional[bool]
 
     # 输出
     final_answer: str                                    # 最终回答文本

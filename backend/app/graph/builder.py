@@ -1,24 +1,26 @@
 # backend/app/graph/builder.py
 """LangGraph 图构建（对齐 Dify 工作流）。
 
-工作流拓扑（14 节点 + 5 路由函数，含 CRAG 回路与追问快速通道）：
+工作流拓扑（16 节点 + 5 路由函数，含 CRAG 回路、追问快速通道与业务决策）：
   rewrite_query → decompose_question
     ├─ is_chitchat → chitchat_node → END
     ├─ 信息不足（AGENT_FOLLOWUP_ENABLED 且守卫通过）→ ask_followup → END
-    ├─ needs_decomposition → multi_step_reason → combined_quality_check
+    ├─ needs_decomposition → multi_step_reason → combined_quality_check → decide_action
     │                                          ├─ pass → END
     │                                          └─ fail → quality_fail → END
     └─ else → judge_relevance
                ├─ relevant → rag_retrieve → rag_quality_eval
-               │               ├─ pass → generate_local → combined_quality_check
+               │               ├─ pass → diagnose → generate_local → combined_quality_check
                │               │                            ├─ pass → END
                │               │                            └─ fail → quality_fail → END
                │               └─ fail → query_corrector → rag_retrieve → rag_quality_eval
-               │                          (correction_count < 1)      ├─ pass → generate_local → ...
+               │                          (correction_count < 1)      ├─ pass → diagnose → ...
                │                                                        └─ fail → web_search → generate_online → ...
                └─ not_relevant → web_search → generate_online → combined_quality_check
                                                               ├─ pass → END
                                                               └─ fail → quality_fail → END
+  （所有生成路径经 combined_quality_check → decide_action → END/quality_fail；
+    decide_action 为确定性规则节点，产出 recommended_action/auto_create_ticket）
 
 CRAG 回路（Self-RAG/CRAG 论文精神）：
 - rag_quality_eval 失败时，不直接放弃走 web_search，而是先纠正查询重试一次检索
@@ -26,11 +28,11 @@ CRAG 回路（Self-RAG/CRAG 论文精神）：
 - query_corrector 职责不同于首次 rewrite_query：解决"检索方向错误"，回传失败原因
 
 路由函数：
-- route_after_decompose：chitchat_node / needs_decomposition / judge_relevance
+- route_after_decompose：chitchat_node / ask_followup / needs_decomposition / judge_relevance
 - route_after_relevance：rag_retrieve / web_search
-- route_after_rag_quality：generate_local / query_corrector / web_search
+- route_after_rag_quality：generate_local（经 diagnose）/ query_corrector / web_search
 - route_after_generate：combined_quality_check（chitchat 已拆分到独立节点）
-- route_after_combined_quality：END / quality_fail
+- route_after_combined_quality：END / quality_fail（现挂在 decide_action 之后）
 """
 # 导入 partial，用于把额外参数（如检索器）预绑定到节点函数上进行注入
 from functools import partial
@@ -49,12 +51,14 @@ from app.graph.nodes import (
     judge_relevance_node,          # 相关性判断节点
     rag_retrieve_node,             # RAG 检索节点
     rag_quality_eval_node,         # 检索质量评估节点
+    diagnose_node,                 # 阶段 4: 结构化诊断节点（local 支路）
     query_corrector_node,          # 查询纠正节点
     web_search_node,               # 联网搜索节点
     generate_local_node,           # 本地生成节点
     generate_online_node,          # 联网生成节点
     multi_step_reason_node,        # 多步推理节点
     combined_quality_check_node,   # 合并质量评估节点
+    decide_action_node,            # 阶段 4: 确定性业务决策节点
     quality_fail_node,             # 质量不合格节点
     _should_followup,              # 阶段 3: 追问守卫（路由用）
 )
@@ -140,12 +144,14 @@ def build_graph(rag_retriever):
     graph.add_node("judge_relevance", partial(judge_relevance_node, rag_retriever=rag_retriever))  # 注入检索器
     graph.add_node("rag_retrieve", partial(rag_retrieve_node, rag_retriever=rag_retriever))        # 检索节点
     graph.add_node("rag_quality_eval", rag_quality_eval_node)              # 检索质量评估节点
+    graph.add_node("diagnose", diagnose_node)                              # 阶段 4: 结构化诊断节点
     graph.add_node("query_corrector", query_corrector_node)                # 查询纠正节点
     graph.add_node("web_search", web_search_node)                          # 联网搜索节点
     graph.add_node("generate_local", generate_local_node)                  # 本地生成节点
     graph.add_node("generate_online", generate_online_node)                # 联网生成节点
     graph.add_node("multi_step_reason", partial(multi_step_reason_node, rag_retriever=rag_retriever))  # 多步推理节点
     graph.add_node("combined_quality_check", combined_quality_check_node)  # 合并质量评估节点
+    graph.add_node("decide_action", decide_action_node)                    # 阶段 4: 业务决策节点
     graph.add_node("quality_fail", quality_fail_node)                      # 质量不合格节点
 
     # 入口
@@ -182,12 +188,14 @@ def build_graph(rag_retriever):
     # 边：rag_retrieve → rag_quality_eval
     graph.add_edge("rag_retrieve", "rag_quality_eval")  # 检索后评估质量
 
-    # 边：rag_quality_eval → generate_local / query_corrector / web_search（CRAG 条件路由）
+    # 边：rag_quality_eval → diagnose / query_corrector / web_search（CRAG 条件路由）
+    # 阶段 4: 质量评估通过后先进入结构化诊断节点，再由 diagnose → generate_local。
+    # 路由函数仍返回 "generate_local"（语义分支名），此处映射到 diagnose。
     graph.add_conditional_edges(             # 条件边
         "rag_quality_eval",                  # 起始节点
         route_after_rag_quality,             # 循环路由
         {
-            "generate_local": "generate_local",  # 通过→生成
+            "generate_local": "diagnose",          # 通过→诊断→生成
             "query_corrector": "query_corrector",  # 首次失败→纠正
             "web_search": "web_search",          # 再次失败→联网
         },
@@ -205,11 +213,16 @@ def build_graph(rag_retriever):
     graph.add_edge("generate_online", "combined_quality_check")  # 联网生成后评估
     # 边：multi_step_reason → combined_quality_check
     graph.add_edge("multi_step_reason", "combined_quality_check")  # 多步推理后评估
+    # 阶段 4: diagnose → generate_local（诊断产出作为生成依据）
+    graph.add_edge("diagnose", "generate_local")
 
-    # 边：combined_quality_check → END / quality_fail（条件路由）
+    # 边：combined_quality_check → decide_action（阶段 4: 所有生成路径先决策）
+    graph.add_edge("combined_quality_check", "decide_action")
+
+    # 边：decide_action → END / quality_fail（条件路由，逻辑同原 combined 出边）
     graph.add_conditional_edges(             # 条件边
-        "combined_quality_check",            # 起始节点
-        route_after_combined_quality,        # 路由函数
+        "decide_action",                     # 起始节点
+        route_after_combined_quality,        # 通过结束/失败告警（逻辑未变，挂载点后移）
         {END: END, "quality_fail": "quality_fail"},  # 通过结束/失败告警
     )
 

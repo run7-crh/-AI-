@@ -1,24 +1,25 @@
 # backend/app/graph/nodes.py
 """LangGraph 节点定义（对齐 Dify 工作流）。
 
-工作流拓扑（12 节点 + 5 路由函数）：
+工作流拓扑（16 节点 + 5 路由函数，含 CRAG 回路、追问快速通道、结构化诊断与业务决策）：
   rewrite_query → decompose_question
     ├─ is_chitchat → chitchat_node → END
+    ├─ 信息不足（AGENT_FOLLOWUP_ENABLED 且守卫通过）→ ask_followup → END
     ├─ needs_decomposition → multi_step_reason → combined_quality_check
-    │                                          ├─ pass → END
-    │                                          └─ fail → quality_fail → END
+    │                                          → decide_action → END / quality_fail
     └─ else → judge_relevance
                ├─ relevant → rag_retrieve → rag_quality_eval
-               │               ├─ pass → generate_local → combined_quality_check
-               │               │                            ├─ pass → END
-               │               │                            └─ fail → quality_fail → END
-               │               └─ fail → web_search → generate_online → combined_quality_check
+               │               ├─ pass → diagnose → generate_local → combined_quality_check
+               │               ├─ fail(未纠正) → query_corrector → rag_retrieve
+               │               └─ fail(已纠正) → web_search → generate_online → combined_quality_check
                └─ not_relevant → web_search → generate_online → combined_quality_check
-                                                              ├─ pass → END
-                                                              └─ fail → quality_fail → END
+                                                                  → decide_action → END / quality_fail
 
 关键设计：
-- decompose_question：意图分类 + 问题分解（P0-2 恢复，P1-5 闲聊快速通道）
+- decompose_question：意图分类 + 问题分解 + 安全判断 + 信息充分性（阶段 3）
+- ask_followup：信息不足时主动追问，不检索不诊断，直接结束（阶段 3）
+- diagnose：local 支路结构化诊断（DiagnosisSchema），失败降级为 None（阶段 4）
+- decide_action：确定性业务决策 answer/followup/create_ticket/escalate，零 LLM（阶段 4）
 - combined_quality_check：合并幻觉检测+答案质量评估（P1-1 合并，省 1 次 LLM 调用）
 - rag_quality_eval：reranker 分数阈值短路（P1-2，高分/低分跳过 LLM）
 - quality_fail：保留原始答案 + 附加 quality_warning（P1-3，不覆盖 final_answer）
@@ -31,7 +32,15 @@ from langchain_core.runnables import RunnableConfig
 # 导入状态类型，节点函数的入参/返回值都以它为基础
 from app.graph.state import AgentState
 # 导入工具函数：LLM 调用、评估、检索、联网搜索，以及两个结构化输出 Schema
-from app.graph.tools import call_llm, evaluate, retrieve, tavily_search, CombinedQualitySchema, DecomposeSchema
+from app.graph.tools import (
+    call_llm,
+    evaluate,
+    retrieve,
+    tavily_search,
+    CombinedQualitySchema,
+    DecomposeSchema,
+    DiagnosisSchema,
+)
 # 从 prompts 模块批量导入各节点使用的提示词模板
 from app.graph.prompts import (
     REWRITE_PROMPT,          # 意图改写提示词
@@ -45,6 +54,7 @@ from app.graph.prompts import (
     SAFETY_EMERGENCY_DIRECTIVE,  # 阶段 2: 紧急模式片段（高风险时拼接）
     HUMAN_ESCALATION_DIRECTIVE,  # 阶段 2: 转人工模式片段（升级时拼接）
     FOLLOWUP_PROMPT,         # 阶段 3: 主动追问提示词（信息不足快速通道）
+    DIAGNOSE_PROMPT,         # 阶段 4: 结构化诊断提示词（local 支路）
 )
 # 导入全局配置，获取模型名称等运行参数
 from app.config import settings
@@ -419,6 +429,296 @@ async def ask_followup_node(state: AgentState, config: RunnableConfig = None) ->
 
 
 # ============================================================================
+# 阶段 4：结构化诊断（diagnose）与确定性业务决策（decide_action）
+# ============================================================================
+# 诊断置信度低于该值视为"无法可靠诊断"→ 决策升级人工（G0）
+DIAGNOSIS_LOW_CONFIDENCE = 0.4
+# 需要售后介入且置信度达到该值才允许 Agent 自动建草稿（G2 双门槛之一）
+TICKET_CONFIDENCE_THRESHOLD = 0.55
+# 单条证据注入诊断提示词的最大字符数（控制 prompt 体积）
+_DIAGNOSIS_EVIDENCE_CHARS = 1200
+
+
+# 定义带证据 id 的证据格式化函数（diagnose 专用：LLM 必须能看见 id 才能引用）
+def _format_evidence_with_ids(items: list) -> str:
+    """把检索证据格式化为带证据 id 的诊断上下文。
+
+    format_evidence_context 不携带 chunk id（面向回答引用的文档名口径），
+    诊断引用必须锚定到 evidence_id 才能程序校验，因此单独格式化。
+    """
+    parts: list[str] = []
+    for item in items or []:
+        if not isinstance(item, dict) or item.get("is_error"):
+            continue
+        content = str(item.get("content", "")).strip()
+        if not content:
+            continue
+        header = (
+            f"【证据 id={item.get('id', '?')}"
+            f"｜来源：{item.get('source') or item.get('title') or '?'}"
+            f"｜机型：{item.get('product_model') or '-'}"
+            f"｜document_type：{item.get('document_type') or '-'}"
+            f"｜data_type：{item.get('data_type') or '-'}】"
+        )
+        parts.append(header + "\n" + content[:_DIAGNOSIS_EVIDENCE_CHARS])
+    return "\n\n".join(parts) or "（无可用证据）"
+
+
+# 定义诊断引用校验函数：citations 必须锚定到真实证据 id
+def _validate_diagnosis_citations(diagnosis: dict, valid_ids: set[str]) -> dict:
+    """丢弃不在检索结果内的 citation；校验后无任何有效引用则置信度归零。
+
+    LLM 不得创造证据 ID——引用与证据脱钩的诊断视为不可信（target_architecture §5.2）。
+    """
+    cleaned = dict(diagnosis)
+    raw_citations = cleaned.get("citations") or []
+    kept: list[dict] = []
+    if isinstance(raw_citations, list):
+        for citation in raw_citations:
+            if not isinstance(citation, dict):
+                continue
+            if str(citation.get("evidence_id") or "") in valid_ids:
+                kept.append(citation)
+    cleaned["citations"] = kept
+    if not kept:
+        # 无可验证引用（LLM 未给或全部非法）→ 诊断不可信，置信度强制归零。
+        cleaned["confidence"] = 0.0
+    return cleaned
+
+
+# 定义诊断节点函数（仅 local 支路，rag_quality_eval 通过后执行）
+async def diagnose_node(state: AgentState) -> dict:
+    """结构化诊断节点（阶段 4）。
+
+    一次 MODEL_FLASH 结构化调用产出 DiagnosisSchema：summary/可能原因三分标注/
+    官方来源步骤/安全提醒/缺口/needs_human_service/confidence/citations。
+    失败（超时/异常/结构非法）→ diagnosis=None，generate_local 退回现行纯文本
+    行为，绝不中断聊天。
+    """
+    retrieval_result = state.get("retrieval_result") or []
+    valid_ids = {
+        str(item.get("id"))
+        for item in retrieval_result
+        if isinstance(item, dict) and item.get("id")
+    }
+    profile = state.get("issue_profile") or {}
+    profile_lines = "\n".join(
+        f"- {key}: {value}"
+        for key, value in profile.items()
+        if value
+    ) or "- （画像为空：机型/部件/故障均未确认）"
+    try:                               # 尝试结构化诊断
+        result = await call_llm(
+            system_prompt=DIAGNOSE_PROMPT.format(
+                profile=profile_lines,
+                evidence=_format_evidence_with_ids(retrieval_result),
+                query=state.get("rewritten_query") or state.get("query", ""),
+            ),
+            user_input=state.get("rewritten_query") or state.get("query", ""),
+            temperature=0.2,
+            output_schema=DiagnosisSchema,
+            model=settings.MODEL_FLASH,
+        )
+        structured = result.get("structured")
+        if not isinstance(structured, dict) or not str(structured.get("summary") or "").strip():
+            raise ValueError("diagnosis structured output invalid")
+        diagnosis = _validate_diagnosis_citations(structured, valid_ids)
+        return {
+            "diagnosis": diagnosis,
+            "judge_log": [{
+                "judge_type": "diagnosis",
+                "passed": True,
+                "raw_output": {
+                    "confidence": diagnosis.get("confidence"),
+                    "needs_human_service": diagnosis.get("needs_human_service"),
+                    "citation_count": len(diagnosis.get("citations") or []),
+                },
+            }],
+        }
+    except Exception as e:             # 诊断失败降级：置 None，回答照常生成
+        logger.warning(f"diagnose 失败，降级为无结构化诊断: {e}")
+        return {
+            "diagnosis": None,
+            "judge_log": [{
+                "judge_type": "diagnosis",
+                "passed": False,
+                "raw_output": {"error": str(e)},
+            }],
+        }
+
+
+# 定义诊断提示词片段格式化函数（generate_local 拼接用，compact 文本）
+def _format_diagnosis_for_prompt(diagnosis: dict) -> str:
+    """把结构化诊断压缩为 generate_local 可校对的文本块。"""
+    lines: list[str] = [f"- 问题判断：{diagnosis.get('summary', '')}"]
+    if diagnosis.get("product_model"):
+        lines.append(f"- 机型：{diagnosis['product_model']}")
+    causes = diagnosis.get("possible_causes") or []
+    if causes:
+        cause_text = "；".join(
+            f"{c.get('cause', '')}（{'知识库明确' if c.get('status') == 'knowledge_based' else '推断' if c.get('status') == 'inferred' else '无法确认'}）"
+            for c in causes if isinstance(c, dict)
+        )
+        lines.append(f"- 可能原因（按可能性排序）：{cause_text}")
+    steps = diagnosis.get("recommended_steps") or []
+    if steps:
+        lines.append("- 建议排查（仅官方依据步骤）：")
+        lines += [
+            f"  {i}. {s.get('step', '')} → 预期：{s.get('expected') or '未标注'}；停止条件：{s.get('stop_condition') or '未标注'}"
+            for i, s in enumerate(steps, start=1) if isinstance(s, dict)
+        ]
+    if diagnosis.get("safety_warning"):
+        lines.append(f"- 安全提醒：{diagnosis['safety_warning']}")
+    lines.append(f"- 置信度：{diagnosis.get('confidence', 0)}")
+    if diagnosis.get("needs_human_service"):
+        lines.append("- 诊断结论：需要售后/维修介入")
+    return "\n".join(lines)
+
+
+# 定义诊断可用性判断函数（decide_action 低置信信号之一）
+def _has_valid_evidence(items) -> bool:
+    """存在非错误、非空内容的证据条目（与 generate_local 低置信口径一致）。"""
+    return any(
+        isinstance(item, dict)
+        and str(item.get("content", "")).strip()
+        and not is_evidence_error(item)
+        for item in items or []
+    )
+
+
+# 定义决策低置信信号函数：按路由给出"无法可靠诊断"的证据
+def _decide_low_confidence(state: dict) -> list[str]:
+    """返回低置信触发原因列表（空列表 = 置信可用）。
+
+    - local：diagnosis 缺失 / diagnosis.confidence 过低 / 重排均分过低 / 无有效证据
+    - online：联网搜索失败（无可用结果）
+    - decomposition：合并上下文为空
+    """
+    route_path = state.get("route_path") or "local"
+    reasons: list[str] = []
+    if route_path == "online":
+        web = state.get("web_search_result")
+        if isinstance(web, str):
+            if web.startswith("（联网搜索失败") or web.startswith("（联网搜索未返回结果"):
+                reasons.append("web_search_failed")
+        elif not _has_valid_evidence(web if isinstance(web, list) else []):
+            reasons.append("web_search_failed")
+        return reasons
+    if route_path == "decomposition":
+        if not _has_valid_evidence(state.get("retrieval_result") or []):
+            reasons.append("decomposition_context_empty")
+        return reasons
+    # local 支路
+    diagnosis = state.get("diagnosis")
+    if not isinstance(diagnosis, dict) or not diagnosis:
+        reasons.append("diagnosis_missing")
+    else:
+        try:
+            conf = float(diagnosis.get("confidence") or 0)
+        except (TypeError, ValueError):
+            conf = 0.0
+        if conf < DIAGNOSIS_LOW_CONFIDENCE:
+            reasons.append(f"diagnosis_confidence_low({conf})")
+    avg_score = state.get("avg_reranker_score")
+    if avg_score is not None and avg_score < LOW_CONFIDENCE_SCORE_THRESHOLD:
+        reasons.append(f"reranker_avg_low({avg_score})")
+    if not _has_valid_evidence(state.get("retrieval_result") or []):
+        reasons.append("no_valid_evidence")
+    return reasons
+
+
+# 定义业务决策节点函数：确定性规则，零 LLM
+async def decide_action_node(state: AgentState) -> dict:
+    """确定性业务决策节点（阶段 4，docs/agent/target_architecture.md §5.3）。
+
+    阶梯（首条命中即返回）：
+      G0 escalate：用户要求人工 ∨ 排查失败 ∨ 高风险 ∨ 低置信（按路由判定）
+        - auto_create_ticket 仅当 用户要求人工 ∨ 排查失败（明确需要介入）；
+          高风险首轮不自动建单（可能只是安全咨询）
+      G1 followup：追问路径透传（ask_followup 已置）
+      G2 create_ticket：信息充分 ∧ 排查/安全意图 ∧ local 路径 ∧
+        diagnosis.needs_human_service ∧ confidence ≥ 0.55 ∧ 质量未判失败
+      G3 answer：默认
+    LLM 只供给信号（needs_human_service/confidence），最终 action 由本节点规则裁决。
+    """
+    route_path = state.get("route_path") or "local"
+    if route_path == "followup":       # G1: 追问路径透传
+        return {
+            "recommended_action": "followup",
+            "auto_create_ticket": False,
+            "escalation_required": False,
+            "judge_log": [{
+                "judge_type": "decide_action",
+                "passed": True,
+                "raw_output": {"action": "followup", "triggered_rules": ["route_followup"], "signals": {}},
+            }],
+        }
+
+    escalated_reasons: list[str] = []
+    if state.get("user_requests_human") is True:
+        escalated_reasons.append("user_requests_human")
+    if state.get("prior_troubleshoot_failed") is True:
+        escalated_reasons.append("prior_troubleshoot_failed")
+    if state.get("safety_level") == "high" or state.get("safety_flag") is True:
+        escalated_reasons.append("high_risk")
+    escalated_reasons.extend(_decide_low_confidence(state))
+
+    diagnosis = state.get("diagnosis") if isinstance(state.get("diagnosis"), dict) else None
+    action = "answer"
+    auto_create_ticket = False
+    if escalated_reasons:              # G0: 升级
+        action = "escalate"
+        auto_create_ticket = bool(
+            state.get("user_requests_human") or state.get("prior_troubleshoot_failed")
+        )
+    else:
+        try:
+            confidence = float(diagnosis.get("confidence") or 0) if diagnosis else 0.0
+        except (TypeError, ValueError):
+            confidence = 0.0
+        quality_ok = (                  # 质量判失败（幻觉/未通过）时不自动建单
+            state.get("has_hallucination") is not True
+            and state.get("answer_quality_pass") is not False
+        )
+        if (                    # G2: 需要售后介入 → 建草稿
+            state.get("information_sufficient") is True
+            and state.get("intent") in FOLLOWUP_ELIGIBLE_INTENTS
+            and route_path == "local"
+            and diagnosis is not None
+            and diagnosis.get("needs_human_service") is True
+            and confidence >= TICKET_CONFIDENCE_THRESHOLD
+            and quality_ok
+        ):
+            action = "create_ticket"
+            auto_create_ticket = True
+
+    signals = {
+        "route_path": route_path,
+        "intent": state.get("intent"),
+        "information_sufficient": state.get("information_sufficient"),
+        "avg_reranker_score": state.get("avg_reranker_score"),
+        "diagnosis_confidence": diagnosis.get("confidence") if diagnosis else None,
+        "needs_human_service": diagnosis.get("needs_human_service") if diagnosis else None,
+        "has_hallucination": state.get("has_hallucination"),
+        "answer_quality_pass": state.get("answer_quality_pass"),
+    }
+    return {
+        "recommended_action": action,
+        "auto_create_ticket": auto_create_ticket,
+        "escalation_required": bool(escalated_reasons),
+        "judge_log": [{
+            "judge_type": "decide_action",
+            "passed": True,
+            "raw_output": {
+                "action": action,
+                "triggered_rules": escalated_reasons,
+                "signals": signals,
+            },
+        }],
+    }
+
+
+# ============================================================================
 # 节点 2：问题相关性判断（轻量检索 + 阈值短路）
 # ============================================================================
 # 轻量检索阈值：top_k=1 的 reranker 分数 >= 此值直接判 relevant，跳过 LLM
@@ -765,6 +1065,14 @@ async def generate_local_node(state: AgentState, config: RunnableConfig = None) 
         ),
         state,
     )
+    diagnosis = state.get("diagnosis")   # 阶段 4: 结构化诊断（diagnose 节点产出）
+    if isinstance(diagnosis, dict) and diagnosis:
+        # 七段式回答保留；结构化诊断作为生成依据注入，保证文本与机器可读结构同源。
+        # 在 format 之后拼接（片段含用户数据，避免 .format() 误处理花括号）。
+        prompt += (
+            "\n\n【结构化诊断（诊断引擎已产出，你的回答不得与之冲突）】\n"
+            + _format_diagnosis_for_prompt(diagnosis)
+        )
     # 置信度不足判定：检索平均分低于阈值（灰区下沿）视为置信度不足
     avg_score = state.get("avg_reranker_score")  # 重排平均分
     low_confidence = (
