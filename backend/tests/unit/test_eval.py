@@ -243,14 +243,23 @@ def test_cross_model_contamination_counts_incompatible_explicit_metadata():
 def test_drone_dataset_has_required_structured_gold_fields():
     dataset_path = Path(__file__).parents[2] / "eval" / "dataset.json"
     dataset = json.loads(dataset_path.read_text(encoding="utf-8"))
-    assert dataset["version"] == "2.0-drone-after-sales"
-    assert len(dataset["questions"]) >= 30
+    # 阶段 7: 数据集升级为 v2.1（新增 Agent 业务决策 gold 与追问/建单场景）
+    assert dataset["version"] == "2.1-drone-agent"
+    assert len(dataset["questions"]) >= 40
     required = {
         "question", "category", "difficulty", "expected_route", "acceptable_routes",
         "expected_documents", "expected_product_model", "expected_intent",
         "expected_safety_level", "expected_escalation", "gold_status",
+        "expected_action", "expected_auto_ticket", "expected_gaps",
     }
     for question in dataset["questions"]:
         assert required <= question.keys()
     categories = {question["category"] for question in dataset["questions"]}
     assert {"product_parameter", "troubleshooting", "sop_operation", "flight_safety", "compliance_regulation", "chitchat", "time_sensitive", "knowledge_gap", "cross_model_trap", "synthetic_case"} <= categories
+    # 阶段 7 新场景：信息不足（followup）与需要售后（create_ticket）必须存在
+    assert "insufficient_info" in categories
+    assert "service_needed" in categories
+    followup_questions = [q for q in dataset["questions"] if q["expected_action"] == "followup"]
+    assert followup_questions and all(q["expected_gaps"] for q in followup_questions)
+    ticket_questions = [q for q in dataset["questions"] if q["expected_auto_ticket"]]
+    assert ticket_questions and all(q["expected_action"] == "create_ticket" for q in ticket_questions)

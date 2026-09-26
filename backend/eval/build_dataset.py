@@ -56,6 +56,20 @@ DRONE_QUESTIONS = [
     {"question": "Mavic 3 Enterprise 的产品参数在哪里？", "category": "product_model", "difficulty": "easy", "expected_route": "local", "expected_documents": ["drone_product_mavic_3_enterprise.md"], "expected_product_model": "mavic_3_enterprise", "expected_intent": "product_parameter", "expected_safety_level": "none", "expected_escalation": False, "document_type_priority": ["product", "technical"]},
     {"question": "不知道具体机型时，能否直接套用 Mini 4 Pro 的校准步骤？", "category": "cross_model_trap", "difficulty": "hard", "expected_route": "local", "expected_documents": ["drone_sop_compass_calibration.md"], "expected_product_model": None, "expected_intent": "sop_operation", "expected_safety_level": "none", "expected_escalation": False, "document_type_priority": ["sop", "troubleshooting"]},
     {"question": "请解释指南针为什么会影响飞行方向，但不要把原理当成故障诊断。", "category": "technical_principle", "difficulty": "medium", "expected_route": "local", "expected_documents": ["drone_technical_compass.md"], "expected_product_model": None, "expected_intent": "technical_principle", "expected_safety_level": "none", "expected_escalation": False, "document_type_priority": ["technical", "product"]},
+    # ── 阶段 7：Agent 业务决策场景（expected_action / expected_gaps / expected_auto_ticket）──
+    {"question": "我的无人机飞不了了", "category": "insufficient_info", "difficulty": "easy", "expected_route": "followup", "expected_documents": [], "expected_product_model": None, "expected_intent": "troubleshooting", "expected_safety_level": "none", "expected_escalation": False, "document_type_priority": [], "expected_action": "followup", "expected_gaps": ["product_model", "symptoms"]},
+    {"question": "无人机充不进电，怎么办", "category": "insufficient_info", "difficulty": "easy", "expected_route": "followup", "expected_documents": [], "expected_product_model": None, "expected_intent": "troubleshooting", "expected_safety_level": "none", "expected_escalation": False, "document_type_priority": [], "expected_action": "followup", "expected_gaps": ["product_model"]},
+    {"question": "飞机总是往一边偏", "category": "insufficient_info", "difficulty": "easy", "expected_route": "followup", "expected_documents": [], "expected_product_model": None, "expected_intent": "troubleshooting", "expected_safety_level": "none", "expected_escalation": False, "document_type_priority": [], "expected_action": "followup", "expected_gaps": ["product_model"]},
+    {"question": "无人机的图传断了", "category": "insufficient_info", "difficulty": "easy", "expected_route": "followup", "expected_documents": [], "expected_product_model": None, "expected_intent": "troubleshooting", "expected_safety_level": "none", "expected_escalation": False, "document_type_priority": [], "expected_action": "followup", "expected_gaps": ["product_model", "symptoms"]},
+    {"question": "遥控器连不上飞机，怎么办", "category": "insufficient_info", "difficulty": "easy", "expected_route": "followup", "expected_documents": [], "expected_product_model": None, "expected_intent": "troubleshooting", "expected_safety_level": "none", "expected_escalation": False, "document_type_priority": [], "expected_action": "followup", "expected_gaps": ["product_model"]},
+    {"question": "是 Mini 4 Pro，开机正常但推杆不起飞，没有报错提示", "category": "insufficient_info_second_turn", "difficulty": "medium", "expected_route": "local", "expected_documents": ["drone_troubleshooting_liftoff_abnormal.md"], "expected_product_model": "mini_4_pro", "expected_intent": "troubleshooting", "expected_safety_level": "none", "expected_escalation": False, "document_type_priority": ["troubleshooting", "sop", "case"], "expected_action": "answer", "multi_turn": True},
+    {"question": "是 Agras T50，充电器指示灯一直红色闪烁，电池装上去没反应", "category": "insufficient_info_second_turn", "difficulty": "medium", "expected_route": "local", "expected_documents": ["drone_troubleshooting_battery_not_charging.md"], "expected_product_model": "agras_t50", "expected_intent": "troubleshooting", "expected_safety_level": "none", "expected_escalation": False, "document_type_priority": ["troubleshooting", "sop", "case"], "expected_action": "answer", "multi_turn": True},
+    {"question": "Mini 4 Pro 更换 GPS 模块之后仍然无法定位，是不是需要寄修了？", "category": "service_needed", "difficulty": "hard", "expected_route": "local", "expected_documents": ["drone_troubleshooting_gps_abnormal.md"], "expected_product_model": "mini_4_pro", "expected_intent": "troubleshooting", "expected_safety_level": "none", "expected_escalation": False, "document_type_priority": ["troubleshooting", "sop", "case"], "expected_action": "create_ticket", "expected_auto_ticket": True},
+    {"question": "Agras T50 电池仓触点有明显腐蚀痕迹，充电一直失败，这种情况怎么处理？", "category": "service_needed", "difficulty": "hard", "expected_route": "local", "expected_documents": ["drone_troubleshooting_battery_not_charging.md", "drone_sop_battery_check.md"], "expected_product_model": "agras_t50", "expected_intent": "troubleshooting", "expected_safety_level": "none", "expected_escalation": False, "document_type_priority": ["troubleshooting", "sop", "case"], "expected_action": "create_ticket", "expected_auto_ticket": True},
+    {"question": "Mini 4 Pro 升级固件多次失败，现在设备无法正常开机，是否需要官方检修？", "category": "service_needed", "difficulty": "hard", "expected_route": "local", "expected_documents": ["drone_troubleshooting_firmware_update_failed.md"], "expected_product_model": "mini_4_pro", "expected_intent": "troubleshooting", "expected_safety_level": "none", "expected_escalation": False, "document_type_priority": ["troubleshooting", "sop", "case"], "expected_action": "create_ticket", "expected_auto_ticket": True},
+    {"question": "Mavic 3 Enterprise 自检报 IMU 错误，重新校准两次仍然提示错误，应该送修吗？", "category": "service_needed", "difficulty": "hard", "expected_route": "local", "expected_documents": ["drone_troubleshooting_imu_abnormal.md", "drone_sop_imu_calibration.md"], "expected_product_model": "mavic_3_enterprise", "expected_intent": "troubleshooting", "expected_safety_level": "none", "expected_escalation": False, "document_type_priority": ["troubleshooting", "sop", "case"], "expected_action": "create_ticket", "expected_auto_ticket": True},
+    {"question": "电池充不上电，有人说是充电器问题，也有人说是电池仓触点问题，应该以官方资料为准怎么判断？", "category": "knowledge_conflict", "difficulty": "hard", "expected_route": "local", "expected_documents": ["drone_troubleshooting_battery_not_charging.md", "drone_sop_battery_check.md"], "expected_product_model": None, "expected_intent": "troubleshooting", "expected_safety_level": "none", "expected_escalation": False, "document_type_priority": ["troubleshooting", "sop", "case"], "expected_action": None, "gold_notes": "知识冲突场景：action 不作硬断言，重点核对并列呈现与引用有效性"},
+    {"question": "图传黑屏到底是固件问题还是天线问题？不同资料的排查顺序不一致时怎么办？", "category": "knowledge_conflict", "difficulty": "hard", "expected_route": "local", "expected_documents": ["drone_troubleshooting_video_blackout.md"], "expected_product_model": None, "expected_intent": "troubleshooting", "expected_safety_level": "none", "expected_escalation": False, "document_type_priority": ["troubleshooting", "sop", "case"], "expected_action": None, "gold_notes": "知识冲突场景：action 不作硬断言，重点核对并列呈现与引用有效性"},
 ]
 
 CATEGORY_MAP = {
@@ -226,7 +240,10 @@ def build_drone_dataset() -> dict:
             raise ValueError(f"评估题引用了不存在的 data/drone 文档: {missing}")
         cat = seed["category"]
         cat_counts[cat] = cat_counts.get(cat, 0) + 1
-        questions.append({
+        # 阶段 7: 未显式给出 expected_action 的旧种子按升级标注派生
+        # （expected_escalation=True → escalate，否则 answer）
+        default_action = "escalate" if seed["expected_escalation"] else "answer"
+        question = {
             "id": f"drone-{i:03d}",
             "question": seed["question"],
             "category": cat,
@@ -240,15 +257,24 @@ def build_drone_dataset() -> dict:
             "expected_safety_level": seed["expected_safety_level"],
             "expected_escalation": seed["expected_escalation"],
             "document_type_priority": seed["document_type_priority"],
+            "expected_action": seed.get("expected_action", default_action),
+            "expected_auto_ticket": seed.get("expected_auto_ticket", False),
+            "expected_gaps": seed.get("expected_gaps", []),
             "gold_status": "inferred",
-            "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
+            "gold_notes": seed.get(
+                "gold_notes",
+                "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
+            ),
             "reference_answer": None,
             "expected_answer_keywords": [],
             "keyword_eval": False,
             "source_type": "drone_seed",
-        })
+        }
+        if seed.get("multi_turn"):
+            question["multi_turn"] = True
+        questions.append(question)
     return {
-        "version": "2.0-drone-after-sales",
+        "version": "2.1-drone-agent",
         "schema": {
             "name": "drone_after_sales_eval",
             "retrieval_gold": "expected_documents (文档级；当前为 inferred，需人工复核)",
@@ -256,6 +282,7 @@ def build_drone_dataset() -> dict:
             "structured_gold": [
                 "expected_intent", "expected_product_model", "document_type_priority",
                 "expected_safety_level", "expected_escalation",
+                "expected_action", "expected_auto_ticket", "expected_gaps",
             ],
         },
         "created_at": datetime.now(timezone(timedelta(hours=8))).isoformat(),

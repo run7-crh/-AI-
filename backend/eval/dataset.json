@@ -1,5 +1,5 @@
 {
-  "version": "2.0-drone-after-sales",
+  "version": "2.1-drone-agent",
   "schema": {
     "name": "drone_after_sales_eval",
     "retrieval_gold": "expected_documents (文档级；当前为 inferred，需人工复核)",
@@ -9,12 +9,15 @@
       "expected_product_model",
       "document_type_priority",
       "expected_safety_level",
-      "expected_escalation"
+      "expected_escalation",
+      "expected_action",
+      "expected_auto_ticket",
+      "expected_gaps"
     ]
   },
-  "created_at": "2026-09-19T11:58:34.803823+08:00",
+  "created_at": "2026-09-26T13:37:45.911668+08:00",
   "source_distribution": {
-    "drone_seed": 34,
+    "drone_seed": 47,
     "ai_expanded": 0,
     "from_query_log": 0
   },
@@ -31,7 +34,11 @@
     "time_sensitive": 2,
     "knowledge_gap": 1,
     "synthetic_case": 3,
-    "escalation": 2
+    "escalation": 2,
+    "insufficient_info": 5,
+    "insufficient_info_second_turn": 2,
+    "service_needed": 4,
+    "knowledge_conflict": 2
   },
   "questions": [
     {
@@ -55,6 +62,9 @@
         "product",
         "technical"
       ],
+      "expected_action": "answer",
+      "expected_auto_ticket": false,
+      "expected_gaps": [],
       "gold_status": "inferred",
       "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
       "reference_answer": null,
@@ -85,6 +95,9 @@
         "sop",
         "case"
       ],
+      "expected_action": "answer",
+      "expected_auto_ticket": false,
+      "expected_gaps": [],
       "gold_status": "inferred",
       "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
       "reference_answer": null,
@@ -115,6 +128,9 @@
         "troubleshooting",
         "sop"
       ],
+      "expected_action": "escalate",
+      "expected_auto_ticket": false,
+      "expected_gaps": [],
       "gold_status": "inferred",
       "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
       "reference_answer": null,
@@ -144,6 +160,9 @@
         "sop",
         "troubleshooting"
       ],
+      "expected_action": "answer",
+      "expected_auto_ticket": false,
+      "expected_gaps": [],
       "gold_status": "inferred",
       "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
       "reference_answer": null,
@@ -174,6 +193,9 @@
         "sop",
         "case"
       ],
+      "expected_action": "answer",
+      "expected_auto_ticket": false,
+      "expected_gaps": [],
       "gold_status": "inferred",
       "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
       "reference_answer": null,
@@ -202,6 +224,9 @@
         "technical",
         "product"
       ],
+      "expected_action": "answer",
+      "expected_auto_ticket": false,
+      "expected_gaps": [],
       "gold_status": "inferred",
       "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
       "reference_answer": null,
@@ -232,6 +257,9 @@
         "troubleshooting",
         "sop"
       ],
+      "expected_action": "escalate",
+      "expected_auto_ticket": false,
+      "expected_gaps": [],
       "gold_status": "inferred",
       "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
       "reference_answer": null,
@@ -262,6 +290,9 @@
         "troubleshooting",
         "sop"
       ],
+      "expected_action": "escalate",
+      "expected_auto_ticket": false,
+      "expected_gaps": [],
       "gold_status": "inferred",
       "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
       "reference_answer": null,
@@ -291,6 +322,9 @@
         "troubleshooting",
         "sop"
       ],
+      "expected_action": "escalate",
+      "expected_auto_ticket": false,
+      "expected_gaps": [],
       "gold_status": "inferred",
       "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
       "reference_answer": null,
@@ -320,6 +354,9 @@
         "sop",
         "troubleshooting"
       ],
+      "expected_action": "answer",
+      "expected_auto_ticket": false,
+      "expected_gaps": [],
       "gold_status": "inferred",
       "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
       "reference_answer": null,
@@ -349,6 +386,9 @@
         "sop",
         "troubleshooting"
       ],
+      "expected_action": "answer",
+      "expected_auto_ticket": false,
+      "expected_gaps": [],
       "gold_status": "inferred",
       "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
       "reference_answer": null,
@@ -378,6 +418,9 @@
         "sop",
         "troubleshooting"
       ],
+      "expected_action": "answer",
+      "expected_auto_ticket": false,
+      "expected_gaps": [],
       "gold_status": "inferred",
       "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
       "reference_answer": null,
@@ -407,6 +450,9 @@
         "sop",
         "troubleshooting"
       ],
+      "expected_action": "answer",
+      "expected_auto_ticket": false,
+      "expected_gaps": [],
       "gold_status": "inferred",
       "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
       "reference_answer": null,
@@ -436,6 +482,9 @@
         "sop",
         "troubleshooting"
       ],
+      "expected_action": "answer",
+      "expected_auto_ticket": false,
+      "expected_gaps": [],
       "gold_status": "inferred",
       "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
       "reference_answer": null,
@@ -463,6 +512,9 @@
       "document_type_priority": [
         "safety"
       ],
+      "expected_action": "answer",
+      "expected_auto_ticket": false,
+      "expected_gaps": [],
       "gold_status": "inferred",
       "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
       "reference_answer": null,
@@ -486,6 +538,9 @@
       "expected_safety_level": "none",
       "expected_escalation": false,
       "document_type_priority": [],
+      "expected_action": "answer",
+      "expected_auto_ticket": false,
+      "expected_gaps": [],
       "gold_status": "inferred",
       "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
       "reference_answer": null,
@@ -509,6 +564,9 @@
       "expected_safety_level": "none",
       "expected_escalation": false,
       "document_type_priority": [],
+      "expected_action": "answer",
+      "expected_auto_ticket": false,
+      "expected_gaps": [],
       "gold_status": "inferred",
       "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
       "reference_answer": null,
@@ -532,6 +590,9 @@
       "expected_safety_level": "none",
       "expected_escalation": false,
       "document_type_priority": [],
+      "expected_action": "answer",
+      "expected_auto_ticket": false,
+      "expected_gaps": [],
       "gold_status": "inferred",
       "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
       "reference_answer": null,
@@ -555,6 +616,9 @@
       "expected_safety_level": "none",
       "expected_escalation": false,
       "document_type_priority": [],
+      "expected_action": "answer",
+      "expected_auto_ticket": false,
+      "expected_gaps": [],
       "gold_status": "inferred",
       "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
       "reference_answer": null,
@@ -578,6 +642,9 @@
       "expected_safety_level": "none",
       "expected_escalation": true,
       "document_type_priority": [],
+      "expected_action": "escalate",
+      "expected_auto_ticket": false,
+      "expected_gaps": [],
       "gold_status": "inferred",
       "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
       "reference_answer": null,
@@ -605,6 +672,9 @@
       "document_type_priority": [
         "case"
       ],
+      "expected_action": "answer",
+      "expected_auto_ticket": false,
+      "expected_gaps": [],
       "gold_status": "inferred",
       "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
       "reference_answer": null,
@@ -633,6 +703,9 @@
       "document_type_priority": [
         "case"
       ],
+      "expected_action": "answer",
+      "expected_auto_ticket": false,
+      "expected_gaps": [],
       "gold_status": "inferred",
       "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
       "reference_answer": null,
@@ -662,6 +735,9 @@
         "sop",
         "case"
       ],
+      "expected_action": "answer",
+      "expected_auto_ticket": false,
+      "expected_gaps": [],
       "gold_status": "inferred",
       "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
       "reference_answer": null,
@@ -692,6 +768,9 @@
         "sop",
         "case"
       ],
+      "expected_action": "answer",
+      "expected_auto_ticket": false,
+      "expected_gaps": [],
       "gold_status": "inferred",
       "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
       "reference_answer": null,
@@ -722,6 +801,9 @@
         "sop",
         "case"
       ],
+      "expected_action": "escalate",
+      "expected_auto_ticket": false,
+      "expected_gaps": [],
       "gold_status": "inferred",
       "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
       "reference_answer": null,
@@ -752,6 +834,9 @@
         "sop",
         "case"
       ],
+      "expected_action": "escalate",
+      "expected_auto_ticket": false,
+      "expected_gaps": [],
       "gold_status": "inferred",
       "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
       "reference_answer": null,
@@ -782,6 +867,9 @@
         "troubleshooting",
         "sop"
       ],
+      "expected_action": "escalate",
+      "expected_auto_ticket": false,
+      "expected_gaps": [],
       "gold_status": "inferred",
       "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
       "reference_answer": null,
@@ -812,6 +900,9 @@
         "troubleshooting",
         "sop"
       ],
+      "expected_action": "escalate",
+      "expected_auto_ticket": false,
+      "expected_gaps": [],
       "gold_status": "inferred",
       "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
       "reference_answer": null,
@@ -842,6 +933,9 @@
         "sop",
         "case"
       ],
+      "expected_action": "answer",
+      "expected_auto_ticket": false,
+      "expected_gaps": [],
       "gold_status": "inferred",
       "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
       "reference_answer": null,
@@ -870,6 +964,9 @@
         "sop",
         "troubleshooting"
       ],
+      "expected_action": "answer",
+      "expected_auto_ticket": false,
+      "expected_gaps": [],
       "gold_status": "inferred",
       "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
       "reference_answer": null,
@@ -897,6 +994,9 @@
       "document_type_priority": [
         "case"
       ],
+      "expected_action": "answer",
+      "expected_auto_ticket": false,
+      "expected_gaps": [],
       "gold_status": "inferred",
       "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
       "reference_answer": null,
@@ -925,6 +1025,9 @@
         "product",
         "technical"
       ],
+      "expected_action": "answer",
+      "expected_auto_ticket": false,
+      "expected_gaps": [],
       "gold_status": "inferred",
       "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
       "reference_answer": null,
@@ -953,6 +1056,9 @@
         "sop",
         "troubleshooting"
       ],
+      "expected_action": "answer",
+      "expected_auto_ticket": false,
+      "expected_gaps": [],
       "gold_status": "inferred",
       "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
       "reference_answer": null,
@@ -981,8 +1087,414 @@
         "technical",
         "product"
       ],
+      "expected_action": "answer",
+      "expected_auto_ticket": false,
+      "expected_gaps": [],
       "gold_status": "inferred",
       "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
+      "reference_answer": null,
+      "expected_answer_keywords": [],
+      "keyword_eval": false,
+      "source_type": "drone_seed"
+    },
+    {
+      "id": "drone-035",
+      "question": "我的无人机飞不了了",
+      "category": "insufficient_info",
+      "difficulty": "easy",
+      "expected_route": "followup",
+      "acceptable_routes": [
+        "followup"
+      ],
+      "expected_documents": [],
+      "expected_source": null,
+      "expected_product_model": null,
+      "expected_intent": "troubleshooting",
+      "expected_safety_level": "none",
+      "expected_escalation": false,
+      "document_type_priority": [],
+      "expected_action": "followup",
+      "expected_auto_ticket": false,
+      "expected_gaps": [
+        "product_model",
+        "symptoms"
+      ],
+      "gold_status": "inferred",
+      "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
+      "reference_answer": null,
+      "expected_answer_keywords": [],
+      "keyword_eval": false,
+      "source_type": "drone_seed"
+    },
+    {
+      "id": "drone-036",
+      "question": "无人机充不进电，怎么办",
+      "category": "insufficient_info",
+      "difficulty": "easy",
+      "expected_route": "followup",
+      "acceptable_routes": [
+        "followup"
+      ],
+      "expected_documents": [],
+      "expected_source": null,
+      "expected_product_model": null,
+      "expected_intent": "troubleshooting",
+      "expected_safety_level": "none",
+      "expected_escalation": false,
+      "document_type_priority": [],
+      "expected_action": "followup",
+      "expected_auto_ticket": false,
+      "expected_gaps": [
+        "product_model"
+      ],
+      "gold_status": "inferred",
+      "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
+      "reference_answer": null,
+      "expected_answer_keywords": [],
+      "keyword_eval": false,
+      "source_type": "drone_seed"
+    },
+    {
+      "id": "drone-037",
+      "question": "飞机总是往一边偏",
+      "category": "insufficient_info",
+      "difficulty": "easy",
+      "expected_route": "followup",
+      "acceptable_routes": [
+        "followup"
+      ],
+      "expected_documents": [],
+      "expected_source": null,
+      "expected_product_model": null,
+      "expected_intent": "troubleshooting",
+      "expected_safety_level": "none",
+      "expected_escalation": false,
+      "document_type_priority": [],
+      "expected_action": "followup",
+      "expected_auto_ticket": false,
+      "expected_gaps": [
+        "product_model"
+      ],
+      "gold_status": "inferred",
+      "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
+      "reference_answer": null,
+      "expected_answer_keywords": [],
+      "keyword_eval": false,
+      "source_type": "drone_seed"
+    },
+    {
+      "id": "drone-038",
+      "question": "无人机的图传断了",
+      "category": "insufficient_info",
+      "difficulty": "easy",
+      "expected_route": "followup",
+      "acceptable_routes": [
+        "followup"
+      ],
+      "expected_documents": [],
+      "expected_source": null,
+      "expected_product_model": null,
+      "expected_intent": "troubleshooting",
+      "expected_safety_level": "none",
+      "expected_escalation": false,
+      "document_type_priority": [],
+      "expected_action": "followup",
+      "expected_auto_ticket": false,
+      "expected_gaps": [
+        "product_model",
+        "symptoms"
+      ],
+      "gold_status": "inferred",
+      "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
+      "reference_answer": null,
+      "expected_answer_keywords": [],
+      "keyword_eval": false,
+      "source_type": "drone_seed"
+    },
+    {
+      "id": "drone-039",
+      "question": "遥控器连不上飞机，怎么办",
+      "category": "insufficient_info",
+      "difficulty": "easy",
+      "expected_route": "followup",
+      "acceptable_routes": [
+        "followup"
+      ],
+      "expected_documents": [],
+      "expected_source": null,
+      "expected_product_model": null,
+      "expected_intent": "troubleshooting",
+      "expected_safety_level": "none",
+      "expected_escalation": false,
+      "document_type_priority": [],
+      "expected_action": "followup",
+      "expected_auto_ticket": false,
+      "expected_gaps": [
+        "product_model"
+      ],
+      "gold_status": "inferred",
+      "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
+      "reference_answer": null,
+      "expected_answer_keywords": [],
+      "keyword_eval": false,
+      "source_type": "drone_seed"
+    },
+    {
+      "id": "drone-040",
+      "question": "是 Mini 4 Pro，开机正常但推杆不起飞，没有报错提示",
+      "category": "insufficient_info_second_turn",
+      "difficulty": "medium",
+      "expected_route": "local",
+      "acceptable_routes": [
+        "local"
+      ],
+      "expected_documents": [
+        "drone_troubleshooting_liftoff_abnormal.md"
+      ],
+      "expected_source": "drone_troubleshooting_liftoff_abnormal.md",
+      "expected_product_model": "mini_4_pro",
+      "expected_intent": "troubleshooting",
+      "expected_safety_level": "none",
+      "expected_escalation": false,
+      "document_type_priority": [
+        "troubleshooting",
+        "sop",
+        "case"
+      ],
+      "expected_action": "answer",
+      "expected_auto_ticket": false,
+      "expected_gaps": [],
+      "gold_status": "inferred",
+      "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
+      "reference_answer": null,
+      "expected_answer_keywords": [],
+      "keyword_eval": false,
+      "source_type": "drone_seed",
+      "multi_turn": true
+    },
+    {
+      "id": "drone-041",
+      "question": "是 Agras T50，充电器指示灯一直红色闪烁，电池装上去没反应",
+      "category": "insufficient_info_second_turn",
+      "difficulty": "medium",
+      "expected_route": "local",
+      "acceptable_routes": [
+        "local"
+      ],
+      "expected_documents": [
+        "drone_troubleshooting_battery_not_charging.md"
+      ],
+      "expected_source": "drone_troubleshooting_battery_not_charging.md",
+      "expected_product_model": "agras_t50",
+      "expected_intent": "troubleshooting",
+      "expected_safety_level": "none",
+      "expected_escalation": false,
+      "document_type_priority": [
+        "troubleshooting",
+        "sop",
+        "case"
+      ],
+      "expected_action": "answer",
+      "expected_auto_ticket": false,
+      "expected_gaps": [],
+      "gold_status": "inferred",
+      "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
+      "reference_answer": null,
+      "expected_answer_keywords": [],
+      "keyword_eval": false,
+      "source_type": "drone_seed",
+      "multi_turn": true
+    },
+    {
+      "id": "drone-042",
+      "question": "Mini 4 Pro 更换 GPS 模块之后仍然无法定位，是不是需要寄修了？",
+      "category": "service_needed",
+      "difficulty": "hard",
+      "expected_route": "local",
+      "acceptable_routes": [
+        "local"
+      ],
+      "expected_documents": [
+        "drone_troubleshooting_gps_abnormal.md"
+      ],
+      "expected_source": "drone_troubleshooting_gps_abnormal.md",
+      "expected_product_model": "mini_4_pro",
+      "expected_intent": "troubleshooting",
+      "expected_safety_level": "none",
+      "expected_escalation": false,
+      "document_type_priority": [
+        "troubleshooting",
+        "sop",
+        "case"
+      ],
+      "expected_action": "create_ticket",
+      "expected_auto_ticket": true,
+      "expected_gaps": [],
+      "gold_status": "inferred",
+      "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
+      "reference_answer": null,
+      "expected_answer_keywords": [],
+      "keyword_eval": false,
+      "source_type": "drone_seed"
+    },
+    {
+      "id": "drone-043",
+      "question": "Agras T50 电池仓触点有明显腐蚀痕迹，充电一直失败，这种情况怎么处理？",
+      "category": "service_needed",
+      "difficulty": "hard",
+      "expected_route": "local",
+      "acceptable_routes": [
+        "local"
+      ],
+      "expected_documents": [
+        "drone_troubleshooting_battery_not_charging.md",
+        "drone_sop_battery_check.md"
+      ],
+      "expected_source": "drone_troubleshooting_battery_not_charging.md",
+      "expected_product_model": "agras_t50",
+      "expected_intent": "troubleshooting",
+      "expected_safety_level": "none",
+      "expected_escalation": false,
+      "document_type_priority": [
+        "troubleshooting",
+        "sop",
+        "case"
+      ],
+      "expected_action": "create_ticket",
+      "expected_auto_ticket": true,
+      "expected_gaps": [],
+      "gold_status": "inferred",
+      "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
+      "reference_answer": null,
+      "expected_answer_keywords": [],
+      "keyword_eval": false,
+      "source_type": "drone_seed"
+    },
+    {
+      "id": "drone-044",
+      "question": "Mini 4 Pro 升级固件多次失败，现在设备无法正常开机，是否需要官方检修？",
+      "category": "service_needed",
+      "difficulty": "hard",
+      "expected_route": "local",
+      "acceptable_routes": [
+        "local"
+      ],
+      "expected_documents": [
+        "drone_troubleshooting_firmware_update_failed.md"
+      ],
+      "expected_source": "drone_troubleshooting_firmware_update_failed.md",
+      "expected_product_model": "mini_4_pro",
+      "expected_intent": "troubleshooting",
+      "expected_safety_level": "none",
+      "expected_escalation": false,
+      "document_type_priority": [
+        "troubleshooting",
+        "sop",
+        "case"
+      ],
+      "expected_action": "create_ticket",
+      "expected_auto_ticket": true,
+      "expected_gaps": [],
+      "gold_status": "inferred",
+      "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
+      "reference_answer": null,
+      "expected_answer_keywords": [],
+      "keyword_eval": false,
+      "source_type": "drone_seed"
+    },
+    {
+      "id": "drone-045",
+      "question": "Mavic 3 Enterprise 自检报 IMU 错误，重新校准两次仍然提示错误，应该送修吗？",
+      "category": "service_needed",
+      "difficulty": "hard",
+      "expected_route": "local",
+      "acceptable_routes": [
+        "local"
+      ],
+      "expected_documents": [
+        "drone_troubleshooting_imu_abnormal.md",
+        "drone_sop_imu_calibration.md"
+      ],
+      "expected_source": "drone_troubleshooting_imu_abnormal.md",
+      "expected_product_model": "mavic_3_enterprise",
+      "expected_intent": "troubleshooting",
+      "expected_safety_level": "none",
+      "expected_escalation": false,
+      "document_type_priority": [
+        "troubleshooting",
+        "sop",
+        "case"
+      ],
+      "expected_action": "create_ticket",
+      "expected_auto_ticket": true,
+      "expected_gaps": [],
+      "gold_status": "inferred",
+      "gold_notes": "基于 data/drone 文档身份和阶段 3 路由策略生成，发布前需人工复核。",
+      "reference_answer": null,
+      "expected_answer_keywords": [],
+      "keyword_eval": false,
+      "source_type": "drone_seed"
+    },
+    {
+      "id": "drone-046",
+      "question": "电池充不上电，有人说是充电器问题，也有人说是电池仓触点问题，应该以官方资料为准怎么判断？",
+      "category": "knowledge_conflict",
+      "difficulty": "hard",
+      "expected_route": "local",
+      "acceptable_routes": [
+        "local"
+      ],
+      "expected_documents": [
+        "drone_troubleshooting_battery_not_charging.md",
+        "drone_sop_battery_check.md"
+      ],
+      "expected_source": "drone_troubleshooting_battery_not_charging.md",
+      "expected_product_model": null,
+      "expected_intent": "troubleshooting",
+      "expected_safety_level": "none",
+      "expected_escalation": false,
+      "document_type_priority": [
+        "troubleshooting",
+        "sop",
+        "case"
+      ],
+      "expected_action": null,
+      "expected_auto_ticket": false,
+      "expected_gaps": [],
+      "gold_status": "inferred",
+      "gold_notes": "知识冲突场景：action 不作硬断言，重点核对并列呈现与引用有效性",
+      "reference_answer": null,
+      "expected_answer_keywords": [],
+      "keyword_eval": false,
+      "source_type": "drone_seed"
+    },
+    {
+      "id": "drone-047",
+      "question": "图传黑屏到底是固件问题还是天线问题？不同资料的排查顺序不一致时怎么办？",
+      "category": "knowledge_conflict",
+      "difficulty": "hard",
+      "expected_route": "local",
+      "acceptable_routes": [
+        "local"
+      ],
+      "expected_documents": [
+        "drone_troubleshooting_video_blackout.md"
+      ],
+      "expected_source": "drone_troubleshooting_video_blackout.md",
+      "expected_product_model": null,
+      "expected_intent": "troubleshooting",
+      "expected_safety_level": "none",
+      "expected_escalation": false,
+      "document_type_priority": [
+        "troubleshooting",
+        "sop",
+        "case"
+      ],
+      "expected_action": null,
+      "expected_auto_ticket": false,
+      "expected_gaps": [],
+      "gold_status": "inferred",
+      "gold_notes": "知识冲突场景：action 不作硬断言，重点核对并列呈现与引用有效性",
       "reference_answer": null,
       "expected_answer_keywords": [],
       "keyword_eval": false,

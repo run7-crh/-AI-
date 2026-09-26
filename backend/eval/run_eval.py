@@ -253,6 +253,11 @@ async def stream_chat(client: AsyncClient, conv_id: str, question: str) -> dict:
     safety_flag = None
     safety_level = None
     escalation_required = None
+    # 阶段 7: Agent 业务决策与结构化诊断（旧后端无这些 meta 字段时保持 None）
+    recommended_action = None
+    agent_ticket = None
+    information_gaps = None
+    diagnosis = None
     error = None
 
     try:
@@ -269,6 +274,8 @@ async def stream_chat(client: AsyncClient, conv_id: str, question: str) -> dict:
                     "intent": None, "product_model": None, "document_type_priority": None,
                     "metadata_constraints": None, "safety_flag": None, "safety_level": None,
                     "escalation_required": None,
+                    "recommended_action": None, "agent_ticket": None,
+                    "information_gaps": None, "diagnosis": None,
                     "has_source": False,
                     "latency_ms": int((time.time() - t0) * 1000), "error": error,
                 }
@@ -327,6 +334,11 @@ async def stream_chat(client: AsyncClient, conv_id: str, question: str) -> dict:
                         safety_flag = meta.get("safety_flag")
                         safety_level = meta.get("safety_level")
                         escalation_required = meta.get("escalation_required")
+                        # 阶段 7: 业务决策/自动建单/缺口/结构化诊断
+                        recommended_action = meta.get("recommended_action")
+                        agent_ticket = meta.get("agent_ticket")
+                        information_gaps = meta.get("information_gaps")
+                        diagnosis = meta.get("diagnosis")
                         judge_log = meta.get("judge_log") or []
                         for judge in reversed(judge_log):
                             raw = judge.get("raw_output", {}) if isinstance(judge, dict) else {}
@@ -357,6 +369,10 @@ async def stream_chat(client: AsyncClient, conv_id: str, question: str) -> dict:
         "safety_flag": safety_flag,
         "safety_level": safety_level,
         "escalation_required": escalation_required,
+        "recommended_action": recommended_action,
+        "agent_ticket": agent_ticket,
+        "information_gaps": information_gaps,
+        "diagnosis": diagnosis,
         "has_source": has_source,
         "latency_ms": int((time.time() - t0) * 1000),
         "error": error,
@@ -371,6 +387,14 @@ def create_conversation(client: AsyncClient) -> str:
 
 async def eval_one(client: AsyncClient, q: dict) -> dict:
     """评估单条问题。每条用独立会话，避免历史污染。"""
+    if q.get("multi_turn"):
+        # 阶段 7: 追问后第二轮需要跨轮上下文（上一轮 followup + 本轮补充），
+        # 单轮 SSE 评估器无法可靠模拟，标记跳过并留待人工/脚本化多轮验证。
+        return {
+            "id": q["id"], "question": q["question"], "category": q["category"],
+            "skipped_multi_turn": True,
+        }
+
     # 创建独立会话
     create_resp = await client.post("/api/conversations", json={})
     conv_id = create_resp.json()["id"]
@@ -428,6 +452,53 @@ async def eval_one(client: AsyncClient, q: dict) -> dict:
     # 没有结构化质量事件时无法可靠判断幻觉，使用 None 而不是“没有来源即幻觉”。
     hallucination_suspected = chat_result.get("has_hallucination")
 
+    # ------------------------------------------------------------------
+    # 阶段 7: Agent 业务指标（expected_action 为 None 的题不计入 action 分母）
+    # ------------------------------------------------------------------
+    expected_action = q.get("expected_action")
+    expected_auto_ticket = q.get("expected_auto_ticket")
+    expected_gaps = q.get("expected_gaps") or []
+    actual_action = chat_result.get("recommended_action")
+    actual_ticket = chat_result.get("agent_ticket")
+    actual_gaps_raw = chat_result.get("information_gaps") or []
+    actual_gap_fields = {
+        str(gap.get("field", "")).strip()
+        for gap in actual_gaps_raw
+        if isinstance(gap, dict)
+    }
+    actual_diagnosis = chat_result.get("diagnosis")
+
+    action_correct = (
+        (actual_action == expected_action) if expected_action else None
+    )
+    ticket_action_correct = (
+        (bool(actual_ticket) == bool(expected_auto_ticket))
+        if expected_auto_ticket is not None
+        else None
+    )
+    followup_gap_hit = None
+    if expected_action == "followup" and expected_gaps:
+        followup_gap_hit = (
+            sum(1 for field in expected_gaps if field in actual_gap_fields)
+            / len(expected_gaps)
+        )
+    diagnosis_present = actual_diagnosis is not None if actual_route == "local" else None
+    diagnosis_citation_validity = None
+    if isinstance(actual_diagnosis, dict):
+        citations = actual_diagnosis.get("citations") or []
+        if citations:
+            evidence_ids = {
+                str(src.get("id"))
+                for src in chat_result.get("retrieved_sources", [])
+                if isinstance(src, dict) and src.get("id")
+            }
+            diagnosis_citation_validity = sum(
+                1 for c in citations
+                if isinstance(c, dict) and str(c.get("evidence_id") or "") in evidence_ids
+            ) / len(citations)
+    elif actual_route == "local":
+        diagnosis_citation_validity = None  # 无诊断（降级）不参与引用校验均值
+
     return {
         "id": q["id"],
         "question": q["question"],
@@ -443,6 +514,17 @@ async def eval_one(client: AsyncClient, q: dict) -> dict:
         "expected_document_type_priority": q.get("document_type_priority") or q.get("expected_document_type_priority"),
         "expected_safety_level": q.get("expected_safety_level"),
         "expected_escalation": q.get("expected_escalation"),
+        "expected_action": expected_action,
+        "expected_auto_ticket": expected_auto_ticket,
+        "expected_gaps": expected_gaps,
+        "actual_action": actual_action,
+        "actual_auto_ticket": bool(actual_ticket) if actual_ticket else False,
+        "actual_gaps": actual_gaps_raw,
+        "action_correct": action_correct,
+        "ticket_action_correct": ticket_action_correct,
+        "followup_gap_hit": followup_gap_hit,
+        "diagnosis_present": diagnosis_present,
+        "diagnosis_citation_validity": diagnosis_citation_validity,
         "actual_route": actual_route,
         "actual_intent": chat_result.get("intent"),
         "actual_product_model": chat_result.get("product_model"),
@@ -490,6 +572,9 @@ async def eval_one(client: AsyncClient, q: dict) -> dict:
 
 def aggregate(results: list[dict]) -> dict:
     """聚合统计。"""
+    # 阶段 7: 多轮题（追问后第二轮）单轮评估器无法模拟，单独计数不进任何分母
+    skipped_results = [r for r in results if r.get("skipped_multi_turn")]
+    results = [r for r in results if not r.get("skipped_multi_turn")]
     total = len(results)
 
     # 路由准确率：所有题计入分母
@@ -562,6 +647,36 @@ def aggregate(results: list[dict]) -> dict:
     safety_recall = _safety_recall(results)
     escalation_accuracy = _classification_accuracy(results, "escalation")
     cross_model_contamination_count = _cross_model_contamination_count(results)
+
+    # ------------------------------------------------------------------
+    # 阶段 7: Agent 业务指标（分母只含带 gold 标注且可判定的题）
+    # ------------------------------------------------------------------
+    action_denom = [r for r in results if r.get("action_correct") is not None]
+    action_accuracy = (
+        sum(1 for r in action_denom if r["action_correct"]) / len(action_denom)
+        if action_denom else None
+    )
+    ticket_denom = [r for r in results if r.get("ticket_action_correct") is not None]
+    ticket_action_accuracy = (
+        sum(1 for r in ticket_denom if r["ticket_action_correct"]) / len(ticket_denom)
+        if ticket_denom else None
+    )
+    gap_values = [r.get("followup_gap_hit") for r in results if r.get("followup_gap_hit") is not None]
+    followup_gap_hit_rate = sum(gap_values) / len(gap_values) if gap_values else None
+    diagnosis_denom = [r for r in results if r.get("diagnosis_present") is not None]
+    diagnosis_coverage = (
+        sum(1 for r in diagnosis_denom if r["diagnosis_present"]) / len(diagnosis_denom)
+        if diagnosis_denom else None
+    )
+    diagnosis_citation_values = [
+        r.get("diagnosis_citation_validity")
+        for r in results
+        if r.get("diagnosis_citation_validity") is not None
+    ]
+    diagnosis_citation_validity_rate = (
+        sum(diagnosis_citation_values) / len(diagnosis_citation_values)
+        if diagnosis_citation_values else None
+    )
 
     # 失败案例（路由错误或报错）
     failed_cases = [
@@ -694,6 +809,19 @@ def aggregate(results: list[dict]) -> dict:
             "safety_recall": safety_recall,
             "escalation_accuracy": escalation_accuracy,
             "cross_model_contamination_count": cross_model_contamination_count,
+            # 阶段 7: Agent 业务指标
+            "action_accuracy": action_accuracy,
+            "action_denom": len(action_denom),
+            "ticket_action_accuracy": ticket_action_accuracy,
+            "ticket_action_denom": len(ticket_denom),
+            "followup_gap_hit_rate": followup_gap_hit_rate,
+            "followup_gap_denom": len(gap_values),
+            "diagnosis_coverage": diagnosis_coverage,
+            "diagnosis_denom": len(diagnosis_denom),
+            "diagnosis_citation_validity": diagnosis_citation_validity_rate,
+            "diagnosis_citation_denom": len(diagnosis_citation_values),
+            "skipped_multi_turn": len(skipped_results),
+            "skipped_multi_turn_ids": [r["id"] for r in skipped_results],
         },
         "metric_definitions": {
             "route_accuracy": "actual_route 命中 acceptable_routes 的比例",
@@ -718,6 +846,12 @@ def aggregate(results: list[dict]) -> dict:
             "safety_recall": "expected_safety_level=high 的题中，后端返回 high/true 的比例",
             "escalation_accuracy": "expected_escalation 与 SSE meta.escalation_required 的精确匹配",
             "cross_model_contamination_count": "明确机型题中，返回本地证据的 product_model 与期望机型冲突的条数；all 不计入",
+            "action_accuracy": "expected_action 与 SSE meta.recommended_action 的精确匹配（answer/followup/create_ticket/escalate）",
+            "ticket_action_accuracy": "expected_auto_ticket 与 meta.agent_ticket 是否出现的精确匹配（含误报与漏报）",
+            "followup_gap_hit_rate": "followup 题中，expected_gaps 字段出现在 meta.information_gaps 的平均命中率",
+            "diagnosis_coverage": "local 路径题中结构化诊断（meta.diagnosis）产出比例",
+            "diagnosis_citation_validity": "diagnosis.citations 中 evidence_id 命中实际证据 id 的平均比例（程序校验）",
+            "skipped_multi_turn": "multi_turn=true 的题数，单轮评估器跳过，需人工/脚本多轮验证",
         },
         "warnings": warnings,
         "by_category": by_category,
@@ -878,12 +1012,32 @@ async def main():
     async with LifespanManager(app):
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
+            # 阶段 7 修复：评估脚本构建于认证功能（09-20）之前，从未真正跑通在线
+            # 评估——/api/conversations 现在要求登录 Cookie。注册/登录评估用户。
+            register = await client.post(
+                "/api/auth/register",
+                json={"username": "eval-bot", "password": "Eval-pass-12345"},
+            )
+            if register.status_code not in (201, 409):
+                print(f"评估用户创建失败: {register.status_code} {register.text}")
+                sys.exit(1)
+            login = await client.post(
+                "/api/auth/login",
+                json={"username": "eval-bot", "password": "Eval-pass-12345"},
+            )
+            if login.status_code != 200:
+                print(f"评估用户登录失败: {login.status_code} {login.text}")
+                sys.exit(1)
+
             for i, q in enumerate(questions, 1):
                 print(f"\r[{i}/{len(questions)}] 评估 {q['id']} {q['question'][:30]}...", end="", flush=True)
                 result = await eval_one(client, q)
                 results.append(result)
+                if result.get("skipped_multi_turn"):
+                    print(f"\n  ⏭ 跳过多轮题 {q['id']}（需人工/脚本多轮验证）")
+                    continue
                 # 实时打印异常
-                if result["error"]:
+                if result.get("error"):
                     print(f"\n  ✗ 错误: {result['error']}")
                 else:
                     route_ok = "✓" if result["route_correct"] else "✗"
