@@ -66,6 +66,16 @@ class Settings(BaseSettings):
     ATTACHMENT_TTL_HOURS: int = 24
     ATTACHMENT_MAX_FILENAME_LENGTH: int = 180
 
+    # 图片附件视觉观察（阶段 A：图片 → VLM 结构化观察，docs/agent/vision_phase_a.md）
+    # 红线：VLM 只产出"观察"，不产出诊断结论；观察永不进入 knowledge citations。
+    # 默认关闭；启用需同时配置 VISION_API_KEY（OpenAI 兼容端点，默认智谱 GLM-4V）。
+    VISION_ENABLED: bool = False
+    VISION_API_KEY: str = ""                       # 视觉模型 API 密钥（空 = 图片拒收）
+    VISION_BASE_URL: str = "https://open.bigmodel.cn/api/paas/v4/"  # OpenAI 兼容端点
+    VISION_MODEL: str = "glm-4v-flash"             # 视觉模型名（可切换 glm-4v-plus 等）
+    VISION_TIMEOUT_SECONDS: float = 30.0           # 单次观察调用超时
+    VISION_MAX_IMAGE_BYTES: int = 8 * 1024 * 1024  # 单图上限（独立于文本附件 25MB）
+
     KB_IMPORT_MAX_FILE_BYTES: int = 10 * 1024 * 1024
     KB_IMPORT_MAX_FILES: int = 20
     LOG_DIR: str = str(_PROJECT_ROOT / "backend" / "data" / "logs")

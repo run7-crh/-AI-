@@ -17,7 +17,10 @@ from dataclasses import dataclass
 from pathlib import PurePath
 
 
-ALLOWED_EXTENSIONS = {".pdf", ".txt", ".md", ".docx", ".log", ".json", ".csv"}
+ALLOWED_EXTENSIONS = {".pdf", ".txt", ".md", ".docx", ".log", ".json", ".csv", ".jpg", ".jpeg", ".png", ".webp"}
+# 图片附件走 VLM 观察管线（vision_service），与文本抽取管线分流；是否放行由
+# AttachmentStore 的 VISION 开关裁决，本模块只负责"给了图片就严格校验"。
+IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
 MAX_FILENAME_LENGTH = 180
 MAX_ZIP_ENTRIES = 1000
 MAX_ZIP_UNCOMPRESSED_BYTES = 64 * 1024 * 1024
@@ -31,6 +34,10 @@ _MIME_ALIASES = {
     ".log": {"text/plain"},
     ".json": {"application/json", "text/json"},
     ".csv": {"text/csv", "application/csv", "text/plain"},
+    ".jpg": {"image/jpeg"},
+    ".jpeg": {"image/jpeg"},
+    ".png": {"image/png"},
+    ".webp": {"image/webp"},
 }
 
 
@@ -136,6 +143,19 @@ def _detect_and_validate_format(extension: str, payload: bytes) -> str:
         if not payload.startswith(b"%PDF-") or b"%%EOF" not in payload[-1024:]:
             raise AttachmentValidationError("signature_invalid")
         return "application/pdf"
+    if extension in {".jpg", ".jpeg"}:
+        # JPEG 以 SOI 标记开头；只校验文件头，不做深度解码（避免解码炸弹）。
+        if not payload.startswith(b"\xff\xd8\xff"):
+            raise AttachmentValidationError("signature_invalid")
+        return "image/jpeg"
+    if extension == ".png":
+        if not payload.startswith(b"\x89PNG\r\n\x1a\n"):
+            raise AttachmentValidationError("signature_invalid")
+        return "image/png"
+    if extension == ".webp":
+        if len(payload) < 12 or payload[:4] != b"RIFF" or payload[8:12] != b"WEBP":
+            raise AttachmentValidationError("signature_invalid")
+        return "image/webp"
     if extension == ".docx":
         if not payload.startswith(b"PK"):
             raise AttachmentValidationError("signature_invalid")
