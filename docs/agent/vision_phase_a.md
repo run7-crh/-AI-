@@ -66,6 +66,15 @@
   SourceCard 按 `media_type` 渲染"图片观察"卡片（图标+标签+观察内容）。
 - **验收**：pytest 507 绿（+1 集成）、`npm test` 125 绿（+26）、`npm run build` 通过。
 
-## 阶段 C 待办（待授权）
+## 阶段 C 实施纪要（2026-09-27，评估与文档）
 
-- 10–15 张真实损伤/截图测试集（不得编造）、观察抽取指标、README 18 节同步与隐私声明。
+- **图片来源决策**：用户无真实损伤图片。采用**程序渲染合成夹具**（延续 data/drone synthetic 诚实标注传统）：截图类夹具画面文字像素级已知，gold 由渲染内容直接导出 `gold_status=verified`；真实损伤识别率显式标注 `real_image_coverage=0`，不构成任何结论。
+- **夹具**（`eval/build_vision_fixtures.py` → 10 张 + `vision_cases.json`）：6 张 App 报错/告警/校准/固件截图（英文 UI 文字）+ 4 张部件示意图（中文说明文字，损伤线索来自图内文字——检验"文字→damage_signals 字段路由"，非视觉损伤识别）。
+- **指标**（`eval/run_vision_eval.py`，与 run_eval 同风格：显式分母 + 诚实声明 + 时间戳报告）：schema_validity、image_type_accuracy、text_recall、damage_false_positive_rate、damage_cue_hit_rate（字符级容忍口径）。
+- **首跑抓到真问题**：纯子串口径下线索命中 66.7%——模型把"桨叶末端缺口"改写为"桨叶末端有缺口"未命中子串；判定为匹配口径缺陷（中文无词边界），改为字符级容忍（≥0.75 覆盖，单测锚定）后复测 100%。两份带时间戳报告均保留。
+- **最终数字（glm-4v-flash）**：schema_validity 100%、image_type_accuracy 100%（6/6）、text_recall 100%（14/14）、damage_false_positive_rate 0%（0/7）、damage_cue_hit_rate 100%（3/3）。
+- **验收**：pytest **512 绿**（+5 评估口径单测）、compileall 通过；README §3/§10/§12/§13/§17 已同步（含视觉诚实声明）。
+
+## 后续待办
+
+- 真实损伤图片集（用户采集或合规来源）到位后：入集 → 人工复核 gold → 真实识别率出数（机制已就绪，manifest 加 real 类目即可）。

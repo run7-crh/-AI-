@@ -1,0 +1,156 @@
+{
+  "version": "vision_v1.0",
+  "honesty_note": "全部夹具为程序渲染（合成）图片，gold 由渲染文字像素级导出；真实损伤照片识别率在真实图片集到位前不可评估（real_image_coverage=0）。",
+  "cases": [
+    {
+      "id": "vs01",
+      "category": "app_error_screenshot",
+      "image": "eval/vision_fixtures/vs01.png",
+      "gold": {
+        "image_type": "screenshot",
+        "text_must_contain": [
+          "ERROR 30010",
+          "Motor overload"
+        ],
+        "damage_expected": []
+      },
+      "gold_status": "verified",
+      "note": "合成渲染 App 报错截图：文字像素级已知"
+    },
+    {
+      "id": "vs02",
+      "category": "app_error_screenshot",
+      "image": "eval/vision_fixtures/vs02.png",
+      "gold": {
+        "image_type": "screenshot",
+        "text_must_contain": [
+          "ERROR 24",
+          "Compass abnormal"
+        ],
+        "damage_expected": []
+      },
+      "gold_status": "verified",
+      "note": "合成渲染 App 报错截图：文字像素级已知"
+    },
+    {
+      "id": "vs03",
+      "category": "app_warning_screenshot",
+      "image": "eval/vision_fixtures/vs03.png",
+      "gold": {
+        "image_type": "screenshot",
+        "text_must_contain": [
+          "Battery temperature too high"
+        ],
+        "damage_expected": []
+      },
+      "gold_status": "verified",
+      "note": "合成渲染告警截图：无实体损伤，damage 期望为空"
+    },
+    {
+      "id": "vs04",
+      "category": "app_ui_screenshot",
+      "image": "eval/vision_fixtures/vs04.png",
+      "gold": {
+        "image_type": "screenshot",
+        "text_must_contain": [
+          "Compass Calibration",
+          "360"
+        ],
+        "damage_expected": []
+      },
+      "gold_status": "verified",
+      "note": "合成渲染校准界面截图"
+    },
+    {
+      "id": "vs05",
+      "category": "app_ui_screenshot",
+      "image": "eval/vision_fixtures/vs05.png",
+      "gold": {
+        "image_type": "screenshot",
+        "text_must_contain": [
+          "02.13.0400",
+          "78%"
+        ],
+        "damage_expected": []
+      },
+      "gold_status": "verified",
+      "note": "合成渲染固件升级界面截图"
+    },
+    {
+      "id": "vs06",
+      "category": "app_warning_screenshot",
+      "image": "eval/vision_fixtures/vs06.png",
+      "gold": {
+        "image_type": "screenshot",
+        "text_must_contain": [
+          "GPS signal weak"
+        ],
+        "damage_expected": []
+      },
+      "gold_status": "verified",
+      "note": "合成渲染 GPS 告警截图"
+    },
+    {
+      "id": "vs07",
+      "category": "labeled_diagram",
+      "image": "eval/vision_fixtures/vs07.png",
+      "gold": {
+        "image_type": null,
+        "text_must_contain": [
+          "桨叶末端缺口"
+        ],
+        "damage_expected": [
+          "桨叶末端缺口"
+        ]
+      },
+      "gold_status": "verified",
+      "note": "示意图：损伤线索来自图内文字说明（文字→字段路由测试），非视觉损伤识别"
+    },
+    {
+      "id": "vs08",
+      "category": "labeled_diagram",
+      "image": "eval/vision_fixtures/vs08.png",
+      "gold": {
+        "image_type": null,
+        "text_must_contain": [
+          "电池鼓包"
+        ],
+        "damage_expected": [
+          "鼓包"
+        ]
+      },
+      "gold_status": "verified",
+      "note": "示意图：损伤线索来自图内文字说明"
+    },
+    {
+      "id": "vs09",
+      "category": "labeled_diagram",
+      "image": "eval/vision_fixtures/vs09.png",
+      "gold": {
+        "image_type": null,
+        "text_must_contain": [
+          "云台磕碰痕迹"
+        ],
+        "damage_expected": [
+          "磕碰"
+        ]
+      },
+      "gold_status": "verified",
+      "note": "示意图：损伤线索来自图内文字说明"
+    },
+    {
+      "id": "vs10",
+      "category": "labeled_diagram",
+      "image": "eval/vision_fixtures/vs10.png",
+      "gold": {
+        "image_type": null,
+        "text_must_contain": [
+          "电机外观正常"
+        ],
+        "damage_expected": []
+      },
+      "gold_status": "verified",
+      "note": "无异常示意图：damage 期望为空（误报检查）"
+    }
+  ]
+}

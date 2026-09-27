@@ -78,6 +78,7 @@
 
 **附件与工单**
 - 附件上传与解析（pdf / txt / md / docx / log / json / csv），内容进入回答上下文
+- 图片观察（jpg / jpeg / png / webp，默认关闭 `VISION_ENABLED`）：视觉模型（默认智谱 GLM-4V，OpenAI 兼容端点可换）只产出结构化"观察"（部件 / 可见异常 / 截图文字），以不受信任资料身份进入理解与诊断流程；观察**永不进入知识库引用**（citations 仍程序校验 ⊆ 检索证据 id），无损伤结论产出权。上传的图片会发送给视觉服务商，原图 24 小时自动删除、不进入知识库
 - 售后工单闭环：聊天页一键生成工单草稿（机型 / 故障分类 / 安全等级由服务端从会话快照判定，前端不可覆盖）→ 用户编辑标题与描述后提交 → 管理员接单 / 转派 / 请求补充 / 公开回复 / 内部备注 → 用户补充信息、确认解决或重开
 
 **账号与运营**
@@ -320,6 +321,10 @@ npm run dev        # http://localhost:5173，/api 已代理到 :8000
 | `AGENT_FOLLOWUP_ENABLED` | — | `true` | 信息不足主动追问（置 `false` 即时回退旧行为） |
 | `AGENT_AUTO_TICKET_ENABLED` | — | `true` | Agent 决策后自动创建工单草稿 |
 | `ADMIN_AI_ANALYSIS_ENABLED` | — | `true` | 管理端工单 AI 分析端点 |
+| `VISION_ENABLED` | — | `false` | 图片视觉观察开关（关闭时图片附件直接拒收） |
+| `VISION_API_KEY` | 启用时 ✅ | — | 视觉模型 API 密钥（默认智谱开放平台） |
+| `VISION_MODEL` / `VISION_BASE_URL` | — | `glm-4v-flash` / 智谱 | 视觉模型与 OpenAI 兼容端点，可换服务商 |
+| `VISION_MAX_IMAGE_BYTES` | — | 8MB | 单图大小上限（独立于文本附件 25MB） |
 
 ## 11. API / 接口说明
 
@@ -344,7 +349,7 @@ npm run dev        # http://localhost:5173，/api 已代理到 :8000
 
 ## 12. 测试与评估
 
-**后端**（pytest **488 passed**：Stage 0 基线 413 + Agent 改造新增 75，覆盖图路由、追问守卫、诊断 schema、决策规则、工单分析服务、RAG、认证、附件、工单、API）：
+**后端**（pytest **512 passed**：Stage 0 基线 413 + Agent 改造新增 75 + 视觉观察 24，覆盖图路由、追问守卫、诊断 schema、决策规则、工单分析服务、视觉观察管线与安全门控、RAG、认证、附件、工单、API）：
 
 ```bash
 cd backend
@@ -352,7 +357,7 @@ python -m pytest -q
 python -m compileall -q app eval
 ```
 
-**前端**（Vitest **116 passed**，25 个测试文件：api / components / stores / router / utils）：
+**前端**（Vitest **125 passed**，26 个测试文件：api / components / stores / router / utils）：
 
 ```bash
 cd frontend
@@ -370,6 +375,15 @@ python eval/run_eval.py --limit 1          # 真实跑通需 API key；--offline
 ```
 
 47 题覆盖原 34 题（飞行安全 6、SOP 5、故障排查 4、跨机型陷阱 3、模拟案例 3、产品型号 2、时效性 2、闲聊 2、人工升级 2、技术原理 2、产品参数 1、合规法规 1、知识库缺口 1）+ 13 题新场景（信息不足追问、追问第二轮、需人工服务、知识冲突）。gold_action 分布：answer 27 / followup 5 / create_ticket 4 / escalate 9 / 不作断言 2；45 题单轮执行 + 2 题多轮待脚本化验证。
+
+**视觉观察评估**：夹具由 `build_vision_fixtures.py` **程序渲染**（合成截图 / 示意图，画面文字像素级已知，gold 由渲染内容直接导出 `gold_status=verified`，无编造的真实损伤标注）；评估脚本真实调用视觉模型：
+
+```bash
+cd backend
+python eval/build_vision_fixtures.py      # 生成 10 张夹具 + vision_cases.json
+python -m pytest -q tests/unit/test_vision_eval.py   # 评估口径回归（不触网）
+python eval/run_vision_eval.py            # 真实调用视觉模型，需 VISION_ENABLED
+```
 
 ## 13. 项目效果 / 指标
 
@@ -398,6 +412,18 @@ python eval/run_eval.py --limit 1          # 真实跑通需 API key；--offline
 | hallucination_suspected | 10 条（28.6%） | 其中 9 条在 online 路径（质量检查对 Tavily 摘要偏保守），1 条 local |
 
 **历史结果（v1.1，2026-08，旧路由 + 20 题自测集）**：`route_accuracy` 0.95 → 1.0（修复时效性误路由、答案复述、Tavily 静默失败后）。对应旧版拓扑，与当前数字不可比；也不存在"改造前后对比"——无人机版评估集改造前从未真实执行，任何 before 数字都是不存在的。
+
+**视觉观察首跑基线（2026-09-27，glm-4v-flash，10 张程序渲染夹具）**——报告 `backend/eval/reports/vision_report_20260927_170721.json`：
+
+| 指标 | 数值 | 说明 |
+| --- | --- | --- |
+| schema_validity | 100% | 10/10 观察调用成功且通过结构校验 |
+| image_type_accuracy | 100% | 6/6 截图类夹具正确判定 `screenshot` |
+| text_recall | 100% | 14/14 渲染文字子串被逐字转录（含错误码 / 版本号） |
+| damage_false_positive_rate | 0% | 7 个无损伤夹具均未幻觉损伤信号 |
+| damage_cue_hit_rate | 100% | 3/3 示意图文字线索路由进 `damage_signals`（字符级容忍口径，容忍"有/了"类助词改写） |
+
+**视觉评估诚实声明**：夹具全部为程序渲染（gold 由画面文字像素级导出），**真实损伤照片覆盖为 0**——以上数字只证明"观察抽取 / 截图转录 / 文字线索路由"能力，不构成真实损伤识别率的任何结论。首跑曾以纯子串口径测得线索命中 66.7%（模型把"桨叶末端缺口"改写为"桨叶末端有缺口"未命中子串），经口径修正（字符级容忍，单测锚定）后复测为 100%；修正动机是匹配口径缺陷而非指标美化，两份带时间戳报告均保留可查。
 
 **诚实声明**：全部 gold 标签 `gold_status=inferred`，未逐题人工复核，`action_accuracy` 等 gold 本身可能有偏差；真实评估含 LLM 随机性（temperature 0.2–0.7），单次运行有波动、未多轮取均值；2 道多轮追问场景尚未脚本化验证。无真实 API key / GPU / 联网时指标为 `null` 或标记未执行，不会用猜测填充。以上数字不构成生产质量承诺；失败案例完整分析见 [agent_upgrade_eval.md](docs/evaluation/agent_upgrade_eval.md)。
 
@@ -457,7 +483,7 @@ python eval/run_eval.py --limit 1          # 真实跑通需 API key；--offline
 - 修复 manifest 计数差异；生产部署（TLS / 反向代理 / 域名 / CORS）、日志脱敏审计、SQLite/Chroma 备份恢复演练、监控告警与压测
 
 **中期**
-- 图片上传与分析（故障照片）、视频诊断、设备遥测接入
+- 真实损伤图片评估集（当前仅有合成夹具验证管线，`real_image_coverage=0`）与真实识别率测量；图片观察接入 diagnose 节点输入；视频诊断、设备遥测接入
 - 知识图谱升级为 Graph RAG 参与检索；外部 CRM / 真实客服系统对接
 - OAuth / 短信登录、多租户（当前单商家模式：工单队列不带商家选择器，`admin` 即品牌售后处理人）
 
