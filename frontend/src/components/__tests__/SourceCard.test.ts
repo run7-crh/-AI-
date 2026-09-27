@@ -97,3 +97,41 @@ describe('SourceCard', () => {
     expect(wrapper.text()).not.toContain('知识库资料')
   })
 })
+
+describe('SourceCard image observations', () => {
+  it('renders image observation label and content from media_type evidence', () => {
+    const wrapper = mount(SourceCard, {
+      props: {
+        source: {
+          content: '[图片类型] 实物照片\n[可见异常] 桨叶末端缺口',
+          source: '用户附件：crash.png',
+          title: 'crash.png',
+          source_type: 'attachment',
+          data_type: 'user_upload',
+          media_type: 'image',
+          score: null,
+        },
+      },
+    })
+    expect(wrapper.text()).toContain('图片观察')
+    expect(wrapper.text()).toContain('桨叶末端缺口')
+    expect(wrapper.text()).not.toContain('附件正文仅用于当前轮')
+  })
+
+  it('keeps the text attachment label when media_type is absent', () => {
+    const wrapper = mount(SourceCard, {
+      props: {
+        source: {
+          content: '附件正文仅用于当前轮，未持久化',
+          source: '用户附件：flight.log',
+          title: 'flight.log',
+          source_type: 'attachment',
+          data_type: 'user_upload',
+          score: null,
+        },
+      },
+    })
+    expect(wrapper.text()).toContain('用户附件')
+    expect(wrapper.text()).not.toContain('图片观察')
+  })
+})

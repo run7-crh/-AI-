@@ -3,7 +3,8 @@
 import { ref } from 'vue'
 import type { Message } from '@/types'
 import { useChatStore } from '@/stores/chat'
-import { User, Copy, Check, Pencil, Paperclip } from 'lucide-vue-next'
+import { User, Copy, Check, Pencil, Paperclip, Image as ImageIcon } from 'lucide-vue-next'
+import { attachmentTypeLabel, isImageAttachment } from '@/utils/attachments'
 
 const props = defineProps<{ message: Message }>()
 const store = useChatStore()
@@ -52,9 +53,10 @@ function attachmentStatus(attachment: NonNullable<Message['attachments']>[number
           :key="attachment.id"
           class="min-w-0 max-w-full flex items-center gap-1.5 rounded-lg border border-stone-200 bg-stone-50 px-2.5 py-1.5 text-xs text-stone-700"
         >
-          <Paperclip class="w-3.5 h-3.5 shrink-0 text-stone-500" />
+          <ImageIcon v-if="isImageAttachment(attachment)" class="w-3.5 h-3.5 shrink-0 text-stone-500" />
+          <Paperclip v-else class="w-3.5 h-3.5 shrink-0 text-stone-500" />
           <span class="min-w-0 max-w-[12rem] truncate" :title="attachment.original_name">{{ attachment.original_name }}</span>
-          <span class="shrink-0 text-gray-500">{{ attachment.extension.toUpperCase() }} · {{ formatSize(attachment.size_bytes) }}</span>
+          <span class="shrink-0 text-gray-500">{{ attachmentTypeLabel(attachment) }} · {{ formatSize(attachment.size_bytes) }}</span>
           <span class="shrink-0 text-gray-500">{{ attachmentStatus(attachment) }}</span>
         </div>
       </div>

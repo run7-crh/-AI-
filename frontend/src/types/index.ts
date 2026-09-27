@@ -39,6 +39,8 @@ export interface Source {
   source_id?: string | null
   data_type?: string | null
   content_truncated?: boolean
+  /** 'image' = 图片观察来源（后端 attachment_evidence 标记）。 */
+  media_type?: string | null
 }
 
 export type AttachmentLifecycleStatus = 'uploading' | 'pending' | 'ready' | 'failed' | 'expired' | 'deleted'
@@ -66,6 +68,8 @@ export interface Attachment {
   deleted_at?: string | null
   /** Client-only upload progress for the current draft. */
   upload_progress?: number
+  /** Client-only blob URL for image previews in the composer; never sent to the server. */
+  preview_url?: string | null
 }
 
 export type AttachmentSummary = Omit<Attachment, 'sha256' | 'upload_progress'>

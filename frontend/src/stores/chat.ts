@@ -11,6 +11,7 @@ import type {
 import * as convApi from '@/api/conversations'
 import * as attachmentApi from '@/api/attachments'
 import { streamChat } from '@/api/chat'
+import { ATTACHMENT_ERROR_LABELS, isImageAttachment } from '@/utils/attachments'
 
 export const useChatStore = defineStore('chat', () => {
   const conversations = ref<Conversation[]>([])
@@ -101,12 +102,27 @@ export const useChatStore = defineStore('chat', () => {
 
   function clearPendingAttachments(): void {
     attachmentDraftGeneration += 1
+    revokePreviewUrls(pendingAttachments.value)
     pendingAttachments.value = []
     attachmentUploadProgress.value = 0
     // A conversation switch or a new round invalidates the draft. The XHR
     // may finish later, but its generation token prevents stale results from
     // re-entering the new conversation.
     isUploadingAttachments.value = false
+  }
+
+  /** 释放图片预览的 blob URL（仅前端本地引用，与服务器无关）。 */
+  function revokePreviewUrls(entries: Attachment[]): void {
+    for (const entry of entries) {
+      if (entry.preview_url) {
+        try {
+          URL.revokeObjectURL(entry.preview_url)
+        } catch {
+          // 环境不支持 object URL（如测试）则忽略
+        }
+        entry.preview_url = null
+      }
+    }
   }
 
   async function uploadAttachments(input: File[] | FileList): Promise<void> {
@@ -118,17 +134,27 @@ export const useChatStore = defineStore('chat', () => {
 
     const generation = attachmentDraftGeneration
     const now = new Date().toISOString()
-    const localEntries: Attachment[] = files.map((file, index) => ({
-      id: `local-${crypto.randomUUID()}-${index}`,
-      original_name: file.name,
-      extension: file.name.includes('.') ? file.name.split('.').pop()?.toLowerCase() || '' : '',
-      declared_mime: file.type || null,
-      size_bytes: file.size,
-      status: 'uploading',
-      extraction_status: 'pending',
-      created_at: now,
-      upload_progress: 0,
-    }))
+    const localEntries: Attachment[] = files.map((file, index) => {
+      const entry: Attachment = {
+        id: `local-${crypto.randomUUID()}-${index}`,
+        original_name: file.name,
+        extension: file.name.includes('.') ? file.name.split('.').pop()?.toLowerCase() || '' : '',
+        declared_mime: file.type || null,
+        size_bytes: file.size,
+        status: 'uploading',
+        extraction_status: 'pending',
+        created_at: now,
+        upload_progress: 0,
+      }
+      if (isImageAttachment(entry)) {
+        try {
+          entry.preview_url = URL.createObjectURL(file)
+        } catch {
+          entry.preview_url = null // 测试/受限环境无 object URL
+        }
+      }
+      return entry
+    })
     pendingAttachments.value = [...pendingAttachments.value, ...localEntries]
     isUploadingAttachments.value = true
     attachmentUploadProgress.value = 0
@@ -151,10 +177,16 @@ export const useChatStore = defineStore('chat', () => {
       }
       const localIds = new Set(localEntries.map((entry) => entry.id))
       const retained = pendingAttachments.value.filter((entry) => !localIds.has(entry.id))
-      pendingAttachments.value = [...retained, ...response.attachments]
+      // 服务端按上传顺序返回；沿用本地 blob 预览（服务端不回传图片字节）。
+      const serverEntries = response.attachments.map((attachment, index) => ({
+        ...attachment,
+        preview_url: localEntries[index]?.preview_url ?? null,
+      }))
+      pendingAttachments.value = [...retained, ...serverEntries]
     } catch (cause) {
       if (generation !== attachmentDraftGeneration) return
-      const message = cause instanceof Error ? cause.message : '附件上传失败'
+      const raw = cause instanceof Error ? cause.message : '附件上传失败'
+      const message = ATTACHMENT_ERROR_LABELS[raw] || raw
       for (const entry of localEntries) {
         entry.status = 'failed'
         entry.extraction_status = 'failed'
@@ -189,6 +221,7 @@ export const useChatStore = defineStore('chat', () => {
         return
       }
     }
+    revokePreviewUrls([attachment])
     pendingAttachments.value = pendingAttachments.value.filter((item) => item.id !== attachmentId)
   }
 
@@ -296,7 +329,8 @@ export const useChatStore = defineStore('chat', () => {
       return
     }
     inputText.value = ''
-    const attachments = pendingAttachments.value.map((item) => ({ ...item }))
+    // 消息附件只保留服务端元数据；blob 预览随 clearPendingAttachments 释放。
+    const attachments = pendingAttachments.value.map((item) => ({ ...item, preview_url: null }))
     clearPendingAttachments()
     await doSend(text, attachments)
   }

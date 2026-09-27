@@ -2,12 +2,13 @@
 <script setup lang="ts">
 import { ref, nextTick } from 'vue'
 import { useChatStore } from '@/stores/chat'
-import { Send, Square, Paperclip, X, Loader2, AlertCircle } from 'lucide-vue-next'
+import { Send, Square, Paperclip, X, Loader2, AlertCircle, Image as ImageIcon } from 'lucide-vue-next'
+import { isImageAttachment, MAX_IMAGE_BYTES } from '@/utils/attachments'
 
 const store = useChatStore()
 const textareaRef = ref<HTMLTextAreaElement>()
 const fileInputRef = ref<HTMLInputElement>()
-const allowedExtensions = ['pdf', 'txt', 'md', 'docx', 'log', 'json', 'csv']
+const allowedExtensions = ['pdf', 'txt', 'md', 'docx', 'log', 'json', 'csv', 'jpg', 'jpeg', 'png', 'webp']
 
 async function autoResize() {
   await nextTick()
@@ -78,6 +79,12 @@ async function onFileChange(event: Event) {
     store.error = `不支持的附件类型：${invalid.name}`
     return
   }
+  // 与后端 VISION_MAX_IMAGE_BYTES 同步的前置校验，避免整批上传后才被拒。
+  const oversized = files.find((file) => isImageAttachment({ original_name: file.name }) && file.size > MAX_IMAGE_BYTES)
+  if (oversized) {
+    store.error = `图片超过大小上限（8MB）：${oversized.name}`
+    return
+  }
   await store.uploadAttachments(files)
 }
 
@@ -97,7 +104,17 @@ defineExpose({ focus })
           :key="attachment.id"
           class="min-w-0 max-w-full flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-xs"
         >
-          <Paperclip class="w-3.5 h-3.5 shrink-0 text-stone-500" />
+          <img
+            v-if="isImageAttachment(attachment) && attachment.preview_url"
+            :src="attachment.preview_url"
+            class="w-8 h-8 rounded object-cover border border-gray-200 shrink-0"
+            alt=""
+          />
+          <ImageIcon
+            v-else-if="isImageAttachment(attachment)"
+            class="w-3.5 h-3.5 shrink-0 text-stone-500"
+          />
+          <Paperclip v-else class="w-3.5 h-3.5 shrink-0 text-stone-500" />
           <span class="min-w-0 max-w-[12rem] truncate" :title="attachment.original_name">{{ attachment.original_name }}</span>
           <span class="shrink-0 text-gray-400">{{ formatSize(attachment.size_bytes) }}</span>
           <span class="shrink-0 rounded-full px-1.5 py-0.5" :class="statusClass(attachment.status, attachment.extraction_status, attachment.expires_at)">
@@ -113,6 +130,15 @@ defineExpose({ focus })
             <X class="w-3.5 h-3.5" />
           </button>
         </div>
+      </div>
+
+      <div
+        v-if="store.pendingAttachments.some((attachment) => isImageAttachment(attachment))"
+        class="flex items-center gap-1.5 text-[11px] text-amber-700"
+        data-testid="vision-privacy-notice"
+      >
+        <ImageIcon class="w-3.5 h-3.5 shrink-0" />
+        <span>图片仅用于生成内容描述，将发送给视觉服务商；原图 24 小时内自动删除，不会进入知识库。</span>
       </div>
 
       <div v-if="store.isUploadingAttachments" class="flex items-center gap-2 text-[11px] text-gray-500" data-testid="attachment-progress">

@@ -74,8 +74,14 @@ def _public_attachment_evidence(items: list[dict]) -> list[dict]:
         content = str(copy.get("content", ""))
         # Keep source-card metadata useful without persisting or streaming the
         # extracted attachment body through messages/query_log.
-        copy["content"] = "附件正文仅用于当前轮，未持久化"
-        copy["content_truncated"] = bool(content)
+        if item.get("media_type") == "image":
+            # 图片观察例外：它是视觉模型产出的有界结构化描述（非用户原始正文，
+            # 字段在 schema 层硬限），公开以驱动前端"图片观察"卡片展示。
+            copy["content"] = content[:2000]
+            copy["content_truncated"] = False
+        else:
+            copy["content"] = "附件正文仅用于当前轮，未持久化"
+            copy["content_truncated"] = bool(content)
         public.append(copy)
     return _usable_evidence(public)
 

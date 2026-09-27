@@ -22,3 +22,21 @@ describe('UserMessage attachments', () => {
     expect(wrapper.text()).toContain('2 KB')
   })
 })
+
+describe('UserMessage image attachments', () => {
+  it('labels image attachments as 图片 instead of the raw extension', () => {
+    setActivePinia(createPinia())
+    const wrapper = mount(UserMessage, {
+      props: {
+        message: {
+          id: 'm2', role: 'user', content: '桨叶这样正常吗', created_at: '',
+          attachments: [{
+            id: 'att_2', original_name: 'crash.png', extension: 'png', size_bytes: 1024,
+            status: 'ready', extraction_status: 'ready',
+          }],
+        },
+      },
+    })
+    expect(wrapper.get('[data-testid="message-attachments"]').text()).toContain('图片 · 1 KB')
+  })
+})

@@ -190,6 +190,7 @@ async def test_prepare_chat_attachments_formats_image_observation(vision_store):
     evidence = bundle["attachment_evidence"][0]
     assert evidence["source_type"] == "attachment"
     assert evidence["data_type"] == "user_upload"
+    assert evidence["media_type"] == "image"
     assert evidence["id"] == f"attachment:{record.id}"
     assert "[可见异常] 桨叶末端缺口" in evidence["content"]
 

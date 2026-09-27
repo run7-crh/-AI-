@@ -357,6 +357,10 @@ class AttachmentStore:
                 "component": None,
                 "fault_type": None,
             })
+            if record.extension in IMAGE_EXTENSIONS:
+                # 图片观察在前端渲染为"图片观察"卡片，并按 media_type 获得公开
+                # 证据的有界展示豁免（观察是视觉模型产出，非用户原始正文）。
+                evidence[-1]["media_type"] = "image"
         return {
             "attachment_context": "\n\n".join(text_parts),
             "attachment_evidence": evidence,

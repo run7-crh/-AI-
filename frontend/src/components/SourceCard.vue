@@ -2,12 +2,17 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import type { Source } from '@/types'
-import { FileText, Globe, ExternalLink, ChevronDown, ChevronUp, Paperclip } from 'lucide-vue-next'
+import { FileText, Globe, ExternalLink, ChevronDown, ChevronUp, Paperclip, Image as ImageIcon } from 'lucide-vue-next'
 
 const props = defineProps<{ source: Source; index?: number }>()
 
 const expanded = ref(false)
 const sourceUrl = computed(() => props.source.url || props.source.source)
+
+/** 图片观察来源：后端在 attachment_evidence 上标记 media_type='image'。 */
+const isImageObservation = computed(() =>
+  props.source.source_type === 'attachment' && props.source.media_type === 'image',
+)
 
 const isUrl = computed(() => {
   try {
@@ -37,7 +42,7 @@ const documentTypeLabel = computed(() => {
 const sourceTypeLabel = computed(() => {
   if (props.source.source_type === 'local') return '本地知识库'
   if (props.source.source_type === 'web') return '联网资料'
-  if (props.source.source_type === 'attachment') return '用户附件'
+  if (props.source.source_type === 'attachment') return isImageObservation.value ? '图片观察' : '用户附件'
   return ''
 })
 const dataTypeLabel = computed(() => {
@@ -77,6 +82,7 @@ function onCardClick() {
           :class="isUrl ? 'bg-amber-100 text-amber-700' : source.source_type === 'attachment' ? 'bg-sky-100 text-sky-700' : 'bg-stone-200 text-stone-700'"
         >
           <Globe v-if="isUrl" class="w-3 h-3" />
+          <ImageIcon v-else-if="isImageObservation" class="w-3 h-3" />
           <Paperclip v-else-if="source.source_type === 'attachment'" class="w-3 h-3" />
           <FileText v-else class="w-3 h-3" />
         </div>
