@@ -55,3 +55,7 @@ Thumbs.db
 # Dify DSL 文件（含原始配置，本地保留即可）
 *.yml
 !docs/**/*.md
+
+# 本地个人文件（不入库）
+INTERVIEW_QA.md
+.zcodeignore
